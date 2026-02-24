@@ -1,3 +1,33 @@
 <resources>
     <string name="app_name">UpQuest</string>
+    <string name="alarm_list_title">Alarms</string>
+    <string name="add_alarm">Add Alarm</string>
+    <string name="dismiss_normal">Dismiss</string>
+    <string name="dismiss_photo">Dismiss with Photo</string>
+    <string name="alarm_detail_title_new">New Alarm</string>
+    <string name="alarm_detail_title_edit">Edit Alarm</string>
+    <string name="alarm_label_hint">Label</string>
+    <string name="alarm_save">Save</string>
+    <string name="alarm_delete">Delete</string>
+    <string name="repeat_days_label">Repeat</string>
+    <string name="dismiss_mode_label">Dismiss Mode</string>
+    <string name="photo_setup_title">Set Reference Photo</string>
+    <string name="photo_take">Take Photo</string>
+    <string name="photo_retake">Retake</string>
+    <string name="photo_confirm">Confirm</string>
+    <string name="settings_title">Settings</string>
+    <string name="theme_mode_label">Theme</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">System</string>
+    <string name="permission_camera_title">Camera Permission Required</string>
+    <string name="permission_camera_description">Camera access is needed to take a reference photo for alarm dismissal.</string>
+    <string name="permission_notification_title">Notification Permission Required</string>
+    <string name="permission_notification_description">Notification access is needed to alert you when the alarm rings.</string>
+    <string name="permission_exact_alarm_title">Exact Alarm Permission Required</string>
+    <string name="permission_exact_alarm_description">Exact alarm permission is needed to ring at the precise scheduled time.</string>
+    <string name="permission_go_to_settings">Go to Settings</string>
+    <string name="permission_allow">Allow</string>
+    <string name="permission_cancel">Cancel</string>
+    <string name="alarm_list_empty">No alarms set.\nTap + to add one.</string>
 </resources>
