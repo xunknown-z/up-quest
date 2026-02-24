@@ -20,19 +20,20 @@
 ```toml
 [versions]
 # 기존 유지 ...
-kotlin = "2.0.21"
-hilt = "2.54"
-hiltNavigationCompose = "1.2.0"
-navigationCompose = "2.9.0"
-room = "2.7.1"
-datastorePreferences = "1.1.4"
+kotlin = "2.3.10"
+hilt = "2.59.2"
+hiltNavigationCompose = "1.3.0"
+navigationCompose = "2.9.7"
+room = "2.8.4"
+datastorePreferences = "1.2.0"
 coil = "2.7.0"
-cameraX = "1.4.2"
+cameraX = "1.5.3"
 materialIconsExtended = "1.7.8"
 lifecycleViewmodelCompose = "2.10.0"
-coroutinesTest = "1.9.0"
-mockk = "1.14.2"
+coroutinesTest = "1.10.2"
+mockk = "1.14.9"
 junitJupiter = "5.11.4"
+ksp = "2.3.4"
 
 [libraries]
 # 기존 유지 ...
@@ -69,7 +70,7 @@ junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.r
 # 기존 유지 ...
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-kotlin-ksp = { id = "com.google.devtools.ksp", version = "2.0.21-1.0.28" }
+kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ```
 
 ### 1-b. build.gradle.kts (root) — 플러그인 추가
