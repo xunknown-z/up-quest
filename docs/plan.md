@@ -1,0 +1,944 @@
+# UpQuest 구현 계획
+
+요구사항: `docs/requirement.md`
+
+---
+
+## 진행 상태 범례
+- `[ ]` 미완료
+- `[x]` 완료
+- `[-]` 진행 중
+
+---
+
+## Phase 1. 환경 설정
+
+### 1-a. libs.versions.toml — 버전 추가
+
+`gradle/libs.versions.toml`에 아래 버전 항목 추가.
+
+```toml
+[versions]
+# 기존 유지 ...
+kotlin = "2.0.21"
+hilt = "2.54"
+hiltNavigationCompose = "1.2.0"
+navigationCompose = "2.9.0"
+room = "2.7.1"
+datastorePreferences = "1.1.4"
+coil = "2.7.0"
+cameraX = "1.4.2"
+materialIconsExtended = "1.7.8"
+lifecycleViewmodelCompose = "2.10.0"
+coroutinesTest = "1.9.0"
+mockk = "1.14.2"
+junitJupiter = "5.11.4"
+
+[libraries]
+# 기존 유지 ...
+# Hilt
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+# Navigation
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+# Room
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+# DataStore
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
+# Coil
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+# CameraX
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraX" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
+# Material Icons Extended
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
+# ViewModel Compose
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleViewmodelCompose" }
+# 테스트
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
+
+[plugins]
+# 기존 유지 ...
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-ksp = { id = "com.google.devtools.ksp", version = "2.0.21-1.0.28" }
+```
+
+### 1-b. build.gradle.kts (root) — 플러그인 추가
+
+```kotlin
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.compose) apply false
+    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.kotlin.ksp) apply false
+}
+```
+
+### 1-c. app/build.gradle.kts — 플러그인 및 의존성 추가
+
+플러그인:
+```kotlin
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.ksp)
+}
+```
+
+`kotlin` 블록으로 JVM toolchain 설정 (AGP 9.0+에서 `kotlinOptions` 제거됨):
+```kotlin
+kotlin {
+    jvmToolchain(11)
+}
+```
+> `jvmToolchain(11)` 사용 시 `compileOptions`의 `sourceCompatibility` / `targetCompatibility`도 함께 대체되므로 기존 `compileOptions` 블록은 제거해도 무방.
+
+의존성:
+```kotlin
+dependencies {
+    // 기존 유지 ...
+
+    // Hilt
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
+
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
+    // Coil
+    implementation(libs.coil.compose)
+
+    // CameraX
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
+    // Material Icons Extended
+    implementation(libs.androidx.compose.material.icons.extended)
+
+    // ViewModel
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // 테스트
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+}
+```
+
+`android` 블록에 JUnit5 테스트 설정:
+```kotlin
+testOptions {
+    unitTests.all {
+        it.useJUnitPlatform()
+    }
+}
+```
+
+### 1-d. app/build.gradle.kts — Flavor 설정 추가
+
+```kotlin
+android {
+    // ...
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+        }
+        create("prod") {
+            dimension = "environment"
+        }
+    }
+}
+```
+
+### 1-e. UpQuestApplication.kt 생성
+
+`app/src/main/java/com/goldennova/upquest/UpQuestApplication.kt`
+- `@HiltAndroidApp` 어노테이션 적용
+- `Application` 클래스 상속
+
+`AndroidManifest.xml`의 `<application>` 태그에 `android:name=".UpQuestApplication"` 추가.
+
+### 1-f. MainActivity.kt — @AndroidEntryPoint 추가
+
+```kotlin
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() { ... }
+```
+
+### 1-g. strings.xml 기본 구조 구성
+
+`res/values/strings.xml` (영어 폴백):
+- `app_name`, `alarm_list_title`, `add_alarm`, `dismiss_normal`, `dismiss_photo` 등 기본 키 정의.
+
+`res/values-ko/strings.xml` (한국어):
+- 동일 키에 한국어 번역 추가.
+
+---
+
+## Phase 2. 도메인 레이어 구축
+
+### 2-a. Alarm 도메인 모델 정의
+
+`domain/model/Alarm.kt`
+```kotlin
+data class Alarm(
+    val id: Long = 0,
+    val hour: Int,
+    val minute: Int,
+    val repeatDays: Set<DayOfWeek>,
+    val label: String,
+    val isEnabled: Boolean,
+    val dismissMode: DismissMode,
+)
+```
+
+### 2-b. DismissMode sealed class 정의
+
+`domain/model/DismissMode.kt`
+```kotlin
+sealed class DismissMode {
+    data object Normal : DismissMode()
+    data class PhotoVerification(val referencePhotoPath: String?) : DismissMode()
+}
+```
+
+### 2-c. AlarmRepository 인터페이스 정의
+
+`domain/repository/AlarmRepository.kt`
+```kotlin
+interface AlarmRepository {
+    fun getAlarms(): Flow<List<Alarm>>
+    suspend fun getAlarmById(id: Long): Alarm?
+    suspend fun insertAlarm(alarm: Alarm): Long
+    suspend fun updateAlarm(alarm: Alarm)
+    suspend fun deleteAlarm(id: Long)
+    suspend fun toggleAlarm(id: Long, isEnabled: Boolean)
+}
+```
+
+### 2-d. UseCase 5종 구현
+
+각 UseCase는 `domain/usecase/` 패키지에 단일 책임으로 분리.
+
+- `GetAlarmsUseCase.kt` — `AlarmRepository.getAlarms()` 래핑 (Flow 반환)
+- `GetAlarmByIdUseCase.kt` — 단건 조회
+- `SaveAlarmUseCase.kt` — insert/update 분기 처리 (`id == 0`이면 insert)
+- `DeleteAlarmUseCase.kt` — 삭제
+- `ToggleAlarmUseCase.kt` — 활성화/비활성화
+
+### 2-e. UseCase 단위 테스트
+
+`test/.../domain/usecase/GetAlarmsUseCaseTest.kt` 등 UseCase별 테스트 파일.
+- `AlarmRepository`를 MockK로 mock 처리.
+- 각 UseCase의 정상 동작 및 예외 케이스 검증.
+- `UnconfinedTestDispatcher` 사용.
+
+---
+
+## Phase 3. 데이터 레이어 — Mock (dev flavor)
+
+### 3-a. FakeAlarmDataSource 구현
+
+`data/datasource/FakeAlarmDataSource.kt`
+- 하드코딩된 알람 리스트 (최소 3개) 를 `MutableStateFlow`로 관리.
+- CRUD 메서드 구현 (메모리 내 처리).
+
+### 3-b. FakeAlarmDataSource 단위 테스트
+
+`test/.../data/datasource/FakeAlarmDataSourceTest.kt`
+- 초기 데이터 로드, insert / update / delete / toggle 시나리오 검증.
+- Flow 방출 값 변화 검증 (`turbine` 또는 `toList()`).
+
+### 3-c. FakeAlarmRepository 구현
+
+`data/repository/FakeAlarmRepository.kt`
+- `AlarmRepository` 인터페이스 구현.
+- `FakeAlarmDataSource`를 내부적으로 사용.
+
+### 3-d. FakeAlarmRepository 단위 테스트
+
+`test/.../data/repository/FakeAlarmRepositoryTest.kt`
+- `FakeAlarmDataSource`를 직접 주입하여 Repository CRUD 동작 검증.
+
+### 3-e. Hilt 모듈 — dev 소스셋
+
+`app/src/dev/java/com/goldennova/upquest/di/RepositoryModule.kt`
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    @Binds @Singleton
+    abstract fun bindAlarmRepository(impl: FakeAlarmRepository): AlarmRepository
+}
+```
+
+---
+
+## Phase 4. 디자인 시스템 구축
+
+### 4-a. ThemeMode 정의
+
+`presentation/theme/ThemeMode.kt`
+```kotlin
+enum class ThemeMode { LIGHT, DARK, SYSTEM }
+```
+
+### 4-b. Color.kt — 브랜드 컬러 팔레트 정의
+
+- Primary: 오렌지 계열 (예: `#FF6B35`)
+- Secondary: 블루 계열 (예: `#1E88E5`)
+- 라이트/다크 색상 쌍 정의.
+
+### 4-c. Theme.kt — 라이트/다크/시스템 + Dynamic Color 지원
+
+- `UpQuestTheme(themeMode: ThemeMode, ...)` 파라미터 추가.
+- `when (themeMode)` 분기로 `darkTheme` 값 결정.
+- Android 12+ Dynamic Color 지원 유지.
+
+### 4-d. ThemePreferencesDataSource 구현
+
+`data/datasource/ThemePreferencesDataSource.kt`
+- `DataStore<Preferences>`를 주입받아 `ThemeMode` 읽기/쓰기.
+- `themeMode: Flow<ThemeMode>` 프로퍼티 노출.
+
+### 4-e. ThemePreferencesDataSource 단위 테스트
+
+`test/.../data/datasource/ThemePreferencesDataSourceTest.kt`
+- `DataStore` 인메모리 구현체(`PreferenceDataStoreFactory`)로 대체하여 읽기/쓰기 검증.
+- 기본값(`SYSTEM`) 반환 검증.
+
+### 4-f. ThemeRepository 인터페이스 및 구현
+
+`domain/repository/ThemeRepository.kt` — `getThemeMode(): Flow<ThemeMode>`, `setThemeMode(mode: ThemeMode)`
+`data/repository/ThemeRepositoryImpl.kt` — `ThemePreferencesDataSource` 사용.
+
+### 4-g. ThemeRepositoryImpl 단위 테스트
+
+`test/.../data/repository/ThemeRepositoryImplTest.kt`
+- `ThemePreferencesDataSource`를 MockK로 mock 처리.
+- `getThemeMode()` Flow 방출 및 `setThemeMode()` 위임 동작 검증.
+
+### 4-h. Hilt 모듈 — DataStore 및 ThemeRepository 바인딩
+
+`di/DataStoreModule.kt` — `DataStore<Preferences>` 싱글톤 프로바이더.
+`di/ThemeModule.kt` — `ThemeRepository` 바인딩 (공통 소스셋).
+
+### 4-i. MainViewModel 생성
+
+- `ThemeRepository.getThemeMode()`를 StateFlow로 수집.
+- `setContent { }` 내부에서 `themeMode` 값을 `UpQuestTheme`에 전달.
+
+### 4-j. MainViewModel 단위 테스트
+
+`test/.../MainViewModelTest.kt`
+- `ThemeRepository`를 MockK로 mock 처리.
+- 초기 테마 모드 수집 및 상태 반영 검증.
+
+---
+
+## Phase 5. 내비게이션 설정
+
+### 5-a. Route 정의 (Type-safe Navigation)
+
+`presentation/navigation/Route.kt`
+```kotlin
+@Serializable object AlarmList
+@Serializable data class AlarmDetail(val alarmId: Long = -1L)  // -1 = 신규 생성
+@Serializable object AlarmAlert
+@Serializable data class PhotoSetup(val alarmId: Long)
+@Serializable object Settings
+```
+
+### 5-b. AppNavHost 컴포저블 생성
+
+`presentation/navigation/AppNavHost.kt`
+- `NavHost`에 각 Route 등록.
+- 각 화면의 `Root` 컴포저블 호출.
+
+### 5-c. MainActivity에 AppNavHost 연결
+
+---
+
+## Phase 5-5. 권한 관리 인프라
+
+### 5-5-a. PermissionStatus sealed class 정의
+
+`presentation/permission/PermissionStatus.kt`
+```kotlin
+sealed interface PermissionStatus {
+    data object Granted : PermissionStatus
+    data object Denied : PermissionStatus           // 거부 (재요청 가능)
+    data object PermanentlyDenied : PermissionStatus // 영구 거부 ("다시 묻지 않음" 선택)
+}
+```
+
+### 5-5-b. PermissionRationaleDialog 공용 컴포저블 작성
+
+`presentation/components/PermissionRationaleDialog.kt`
+- 권한이 필요한 이유를 설명하는 다이얼로그.
+- "허용" 버튼 → 권한 재요청 람다 호출.
+- "취소" 버튼 → 다이얼로그 닫기.
+- 파라미터: `title`, `description`, `onConfirm`, `onDismiss`.
+
+### 5-5-c. PermissionSettingsDialog 공용 컴포저블 작성
+
+`presentation/components/PermissionSettingsDialog.kt`
+- 영구 거부 시 앱 설정으로 유도하는 다이얼로그.
+- "설정으로 이동" 버튼 → `Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)` 실행.
+- "취소" 버튼 → 다이얼로그 닫기 및 해당 기능 비활성화 안내.
+- 파라미터: `title`, `description`, `onGoToSettings`, `onDismiss`.
+
+### 5-5-d. PermissionDialog UI 테스트
+
+`androidTest/.../components/PermissionRationaleDialogTest.kt`
+`androidTest/.../components/PermissionSettingsDialogTest.kt`
+- 각 버튼 클릭 시 람다 호출 검증.
+- 텍스트 렌더링 검증.
+
+---
+
+## Phase 6. 알람 리스트 화면
+
+### 6-a. UiState / Event / SideEffect 정의
+
+`presentation/alarmlist/AlarmListContract.kt`
+```kotlin
+data class AlarmListUiState(
+    val alarms: List<Alarm> = emptyList(),
+    val isLoading: Boolean = false,
+)
+sealed interface AlarmListEvent {
+    data class ToggleAlarm(val id: Long, val enabled: Boolean) : AlarmListEvent
+    data class DeleteAlarm(val id: Long) : AlarmListEvent
+    data object AddAlarm : AlarmListEvent
+    data class EditAlarm(val id: Long) : AlarmListEvent
+}
+sealed interface AlarmListSideEffect {
+    data class NavigateToDetail(val alarmId: Long) : AlarmListSideEffect
+    data object NavigateToNewAlarm : AlarmListSideEffect
+}
+```
+
+### 6-b. AlarmListViewModel 구현
+
+- `GetAlarmsUseCase`, `ToggleAlarmUseCase`, `DeleteAlarmUseCase` 주입.
+- `uiState: StateFlow<AlarmListUiState>` 노출.
+- `sideEffect: SharedFlow<AlarmListSideEffect>` 노출.
+- `onEvent(event: AlarmListEvent)` 이벤트 처리.
+
+### 6-c. AlarmListViewModel 단위 테스트
+
+`test/.../alarmlist/AlarmListViewModelTest.kt`
+- `GetAlarmsUseCase`, `ToggleAlarmUseCase`, `DeleteAlarmUseCase`를 MockK로 mock 처리.
+- 알람 목록 로드, 토글, 삭제 이벤트 처리 후 UiState 변화 검증.
+- `SideEffect` 방출 검증 (NavigateToDetail, NavigateToNewAlarm).
+- `UnconfinedTestDispatcher` 사용.
+
+### 6-d. AlarmCard 공용 컴포저블 작성
+
+`presentation/components/AlarmCard.kt`
+- 알람 시간, 라벨, 요일, 해제 모드 아이콘, 활성화 토글 Switch 표시.
+- `alarm: Alarm`, `onToggle`, `onEdit`, `onDelete` 람다 파라미터.
+
+### 6-e. AlarmListScreen 컴포저블 작성
+
+`presentation/alarmlist/AlarmListScreen.kt`
+- `LazyColumn`으로 `AlarmCard` 목록 출력.
+- 빈 상태(Empty State) UI 처리.
+- `Scaffold` + `TopAppBar` + `FloatingActionButton` 구성.
+
+### 6-f. AlarmListScreen UI 테스트
+
+`androidTest/.../alarmlist/AlarmListScreenTest.kt`
+- Mock UiState(알람 있음 / 없음) 주입 후 카드 렌더링 검증.
+- FAB 클릭, 토글 클릭 이벤트 람다 호출 검증.
+
+### 6-g. AlarmListRoot 컴포저블 작성
+
+`presentation/alarmlist/AlarmListRoot.kt`
+- `hiltViewModel()`로 ViewModel 주입.
+- `sideEffect` 수집 후 내비게이션 처리.
+
+---
+
+## Phase 7. 알람 설정 화면 (Create / Edit)
+
+### 7-a. UiState / Event / SideEffect 정의
+
+`presentation/alarmdetail/AlarmDetailContract.kt`
+- `hour`, `minute`, `repeatDays`, `label`, `dismissMode`, `isLoading` 등 포함.
+- Event: `ChangeHour`, `ChangeMinute`, `ToggleDay`, `ChangeDismissMode`, `Save`, `Delete`.
+- SideEffect: `NavigateBack`, `ShowError`.
+
+### 7-b. AlarmDetailViewModel 구현
+
+- `GetAlarmByIdUseCase`, `SaveAlarmUseCase`, `DeleteAlarmUseCase` 주입.
+- `alarmId == -1L`이면 신규 생성 모드.
+
+### 7-c. AlarmDetailViewModel 단위 테스트
+
+`test/.../alarmdetail/AlarmDetailViewModelTest.kt`
+- 신규 생성 / 기존 수정 분기 시나리오 검증.
+- 각 Event 처리 후 UiState 변화 검증.
+- Save 성공 시 `NavigateBack` SideEffect 방출 검증.
+
+### 7-d. AlarmDetailScreen 컴포저블 작성
+
+- 시간 선택: `TimePicker` (M3).
+- 요일 반복: 요일 토글 버튼 행.
+- 해제 모드 선택: `RadioButton` 그룹 (일반 / 사진 인증).
+- 사진 인증 선택 시 "사진 등록" 버튼 노출.
+
+### 7-e. AlarmDetailScreen UI 테스트
+
+`androidTest/.../alarmdetail/AlarmDetailScreenTest.kt`
+- 신규/수정 UiState 주입 후 각 입력 필드 렌더링 검증.
+- 해제 모드 전환 시 사진 등록 버튼 노출/숨김 검증.
+
+### 7-f. AlarmDetailRoot 컴포저블 작성
+
+---
+
+## Phase 8. 사진 등록 화면 (Photo Setup)
+
+### 8-a. UiState / Event / SideEffect 정의
+
+`presentation/photosetup/PhotoSetupContract.kt`
+- `capturedImagePath: String?`, `isCameraReady: Boolean`, `isPhotoTaken: Boolean`.
+- Event: `TakePhoto`, `RetakePhoto`, `Confirm`.
+- SideEffect: `NavigateBackWithPath(path: String)`.
+
+### 8-b. PhotoSetupViewModel 구현
+
+- 촬영 완료 시 내부 저장소에 이미지 경로 저장.
+- `SaveAlarmUseCase`로 `referencePhotoPath` 업데이트.
+
+### 8-c. PhotoSetupViewModel 단위 테스트
+
+`test/.../photosetup/PhotoSetupViewModelTest.kt`
+- `TakePhoto` 이벤트 처리 후 `capturedImagePath` 상태 변화 검증.
+- `Confirm` 이벤트 처리 후 `NavigateBackWithPath` SideEffect 방출 검증.
+- `RetakePhoto` 이벤트 처리 후 `capturedImagePath` 초기화 검증.
+
+### 8-d. CameraPreview 공용 컴포저블 작성
+
+`presentation/components/CameraPreview.kt`
+- `CameraX`의 `PreviewView`를 `AndroidView`로 래핑.
+- `ImageCapture` UseCase 연동.
+
+### 8-e. PhotoSetupScreen 컴포저블 작성
+
+- `CameraPreview` + 촬영 버튼 + 재촬영 버튼 + 확인 버튼.
+- 촬영 후 미리보기 이미지 표시 (`Coil`).
+
+### 8-f. PhotoSetupScreen UI 테스트
+
+`androidTest/.../photosetup/PhotoSetupScreenTest.kt`
+- 촬영 전/후 UiState 주입 후 버튼 노출 상태 검증.
+
+### 8-g. PhotoSetupRoot 컴포저블 작성
+
+### 8-h. AndroidManifest.xml — 카메라 권한 추가
+
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+```
+
+### 8-i. PhotoSetup 화면 카메라 권한 처리 통합
+
+`PhotoSetupRoot`에서 `rememberPermissionState(CAMERA)`로 권한 상태 관리.
+
+- **화면 진입 시**: 권한 상태 확인.
+  - `Granted` → `CameraPreview` 바로 표시.
+  - `Denied` → `PermissionRationaleDialog` 표시 후 권한 재요청.
+  - `PermanentlyDenied` → `PermissionSettingsDialog` 표시.
+- **앱 설정에서 돌아왔을 때 (`LaunchedEffect` + `lifecycleState == RESUMED`)**: 권한 상태 재확인하여 UI 자동 갱신.
+- **권한 미허용 상태 유지 시**: 카메라 프리뷰 대신 권한 안내 UI 표시, 사진 촬영 버튼 비활성화.
+
+### 8-j. PhotoSetupViewModel 권한 상태 반영
+
+- `UiState`에 `isCameraPermissionGranted: Boolean` 필드 추가.
+- 권한 미허용 상태에서 `TakePhoto` 이벤트 수신 시 무시(guard) 처리.
+
+### 8-k. PhotoSetupViewModel 단위 테스트 업데이트
+
+- 권한 미허용 상태에서 `TakePhoto` 이벤트 무시 검증.
+
+---
+
+## Phase 9. 알람 울림 화면 (Alarm Alert)
+
+### 9-a. UiState / Event / SideEffect 정의
+
+`presentation/alarmalert/AlarmAlertContract.kt`
+- `alarm: Alarm?`, `isDismissed: Boolean`, `isPhotoVerified: Boolean`.
+- Event: `DismissNormal`, `TakeVerificationPhoto`, `PhotoVerified`.
+- SideEffect: `DismissAlarm`, `ShowError`.
+
+### 9-b. PhotoVerificationUseCase 정의 및 dev 구현체
+
+`domain/usecase/PhotoVerificationUseCase.kt`
+- `suspend fun verify(capturedPath: String, referencePath: String): Boolean`
+
+`app/src/dev/java/.../usecase/PhotoVerificationUseCaseImpl.kt`
+- 항상 `true` 반환 (Mock).
+
+### 9-c. PhotoVerificationUseCase 단위 테스트
+
+`test/.../domain/usecase/PhotoVerificationUseCaseTest.kt`
+- dev 구현체: 어떤 경로 입력에도 `true` 반환 검증.
+
+### 9-d. AlarmAlertViewModel 구현
+
+- `GetAlarmByIdUseCase`, `PhotoVerificationUseCase` 주입.
+- 해제 모드에 따라 Normal / Photo 분기 처리.
+
+### 9-e. AlarmAlertViewModel 단위 테스트
+
+`test/.../alarmalert/AlarmAlertViewModelTest.kt`
+- Normal 모드 `DismissNormal` 이벤트 → `DismissAlarm` SideEffect 검증.
+- Photo 모드 `PhotoVerified` 이벤트 → `PhotoVerificationUseCase` 호출 및 결과 반영 검증.
+
+### 9-f. AlarmAlertScreen 컴포저블 작성
+
+- `DismissMode.Normal`: 스와이프 또는 큰 버튼으로 종료.
+- `DismissMode.PhotoVerification`: `CameraPreview` + 촬영 버튼 노출.
+- Shake 애니메이션: `InfiniteTransition`으로 카드 흔들림 구현.
+
+### 9-g. AlarmAlertScreen UI 테스트
+
+`androidTest/.../alarmalert/AlarmAlertScreenTest.kt`
+- Normal / Photo 모드 UiState 주입 후 각 버튼 노출 검증.
+
+### 9-h. AlarmAlertRoot 컴포저블 작성
+
+### 9-i. AlarmAlertActivity 생성
+
+- 알람 울림 화면은 잠금 화면 위에 표시되어야 하므로 별도 `Activity` 사용.
+- `FLAG_SHOW_WHEN_LOCKED`, `FLAG_TURN_SCREEN_ON` 플래그 설정.
+- `AndroidManifest.xml`에 등록.
+
+---
+
+## Phase 10. 알람 스케줄러 (Background)
+
+### 10-a. AlarmScheduler 인터페이스 정의
+
+`domain/alarm/AlarmScheduler.kt`
+```kotlin
+interface AlarmScheduler {
+    fun schedule(alarm: Alarm)
+    fun cancel(alarm: Alarm)
+}
+```
+
+### 10-b. AlarmManagerScheduler 구현
+
+`data/alarm/AlarmManagerScheduler.kt`
+- `AlarmManager.setExactAndAllowWhileIdle()` 사용.
+- `PendingIntent`로 `AlarmBroadcastReceiver` 연결.
+
+### 10-c. AlarmManagerScheduler 단위 테스트
+
+`test/.../data/alarm/AlarmManagerSchedulerTest.kt`
+- `AlarmManager`를 MockK로 mock 처리.
+- `schedule()` 호출 시 `setExactAndAllowWhileIdle()` 파라미터(triggerTime 등) 검증.
+- `cancel()` 호출 시 `cancel(PendingIntent)` 호출 검증.
+
+### 10-d. AlarmBroadcastReceiver 구현
+
+`data/alarm/AlarmBroadcastReceiver.kt`
+- 수신 시 `AlarmAlertActivity` Intent 실행.
+- `AndroidManifest.xml`에 등록.
+
+### 10-e. BootReceiver 구현
+
+`data/alarm/BootReceiver.kt`
+- 기기 재부팅 후 활성화된 알람 재등록.
+- `AndroidManifest.xml`에 `RECEIVE_BOOT_COMPLETED` 권한 및 수신기 등록.
+
+### 10-f. AndroidManifest.xml — 알람 관련 권한 추가
+
+```xml
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.VIBRATE" />
+```
+
+### 10-f-1. 알람 관련 권한 처리 통합
+
+알람 관련 권한은 두 종류로 나뉘어 처리 방식이 다름.
+
+**① POST_NOTIFICATIONS (Android 13+, API 33+) — 일반 런타임 권한**
+- `AlarmDetailRoot`에서 알람 저장 시 권한 상태 확인.
+  - `Denied` → `PermissionRationaleDialog` 표시 후 권한 재요청.
+  - `PermanentlyDenied` → `PermissionSettingsDialog` 표시하여 앱 설정으로 유도.
+  - 미허용 상태로 저장된 알람은 알람음 없이 동작 가능하도록 안내.
+- 앱 설정에서 돌아왔을 때(`RESUMED`) 권한 상태 재확인.
+
+**② SCHEDULE_EXACT_ALARM (Android 12+, API 31+) — 특수 권한 (시스템 설정 필요)**
+- 일반 `requestPermission()`으로 요청 불가. `AlarmManager.canScheduleExactAlarms()`로 상태 확인.
+- 미허용 시: `PermissionSettingsDialog` 표시 후 `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM` Intent로 시스템 설정 화면 이동.
+- 앱 설정에서 돌아왔을 때(`RESUMED`) `canScheduleExactAlarms()` 재확인.
+- 미허용 상태에서는 정확한 알람 대신 `setAndAllowWhileIdle()`로 폴백(fallback) 처리.
+
+### 10-g. SaveAlarmUseCase에 AlarmScheduler 연동
+
+- 알람 저장/업데이트 시 `AlarmScheduler.schedule()` 호출.
+- 알람 삭제/비활성화 시 `AlarmScheduler.cancel()` 호출.
+
+### 10-h. SaveAlarmUseCase 단위 테스트 업데이트
+
+`test/.../domain/usecase/SaveAlarmUseCaseTest.kt`
+- `AlarmScheduler`를 MockK로 mock 처리.
+- 저장 시 `schedule()` 호출, 비활성화 시 `cancel()` 호출 검증.
+
+---
+
+## Phase 11. 설정 화면 (Settings)
+
+### 11-a. UiState / Event 정의
+
+`presentation/settings/SettingsContract.kt`
+- `currentThemeMode: ThemeMode`.
+- Event: `ChangeThemeMode(mode: ThemeMode)`.
+
+### 11-b. SettingsViewModel 구현
+
+- `ThemeRepository` 주입.
+- `getThemeMode()` Flow 수집 → `uiState` 업데이트.
+- `onEvent(ChangeThemeMode)` → `setThemeMode()` 호출.
+
+### 11-c. SettingsViewModel 단위 테스트
+
+`test/.../settings/SettingsViewModelTest.kt`
+- `ThemeRepository`를 MockK로 mock 처리.
+- 초기 테마 모드 UiState 반영 검증.
+- `ChangeThemeMode` 이벤트 처리 후 `setThemeMode()` 호출 검증.
+
+### 11-d. SettingsScreen 컴포저블 작성
+
+- 테마 모드 선택 (라이트 / 다크 / 시스템) `RadioButton` 또는 `SegmentedButton` (M3).
+
+### 11-e. SettingsScreen UI 테스트
+
+`androidTest/.../settings/SettingsScreenTest.kt`
+- 각 테마 모드 UiState 주입 후 선택 상태 표시 검증.
+- 항목 클릭 시 Event 람다 호출 검증.
+
+### 11-f. SettingsRoot 컴포저블 작성
+
+---
+
+## Phase 12. dev flavor 완성 검증
+
+### 12-a. 빌드 확인
+
+```bash
+./gradlew assembleDevDebug
+```
+
+### 12-b. 전체 단위 테스트 통과
+
+```bash
+./gradlew testDevDebugUnitTest
+```
+
+### 12-c. 전체 UI 테스트 통과
+
+```bash
+./gradlew connectedDevDebugAndroidTest
+```
+
+### 12-d. Lint 검사 통과
+
+```bash
+./gradlew lintDevDebug
+```
+
+---
+
+## Phase 13. Room DB 구축 (prod flavor)
+
+### 13-a. AlarmEntity 정의
+
+`data/local/entity/AlarmEntity.kt`
+- `@Entity(tableName = "alarms")`
+- `id`, `hour`, `minute`, `repeatDays` (String 직렬화), `label`, `isEnabled`, `dismissMode` (String), `referencePhotoPath` 컬럼.
+
+### 13-b. AlarmDao 정의
+
+`data/local/dao/AlarmDao.kt`
+- `getAll(): Flow<List<AlarmEntity>>`
+- `getById(id: Long): AlarmEntity?`
+- `insert(entity: AlarmEntity): Long`
+- `update(entity: AlarmEntity)`
+- `deleteById(id: Long)`
+
+### 13-c. AppDatabase 정의
+
+`data/local/AppDatabase.kt`
+- `@Database(entities = [AlarmEntity::class], version = 1)`
+- `alarmDao()` 추상 메서드.
+
+### 13-d. AlarmDao 단위 테스트
+
+`androidTest/.../data/local/dao/AlarmDaoTest.kt`
+- `Room.inMemoryDatabaseBuilder()`로 인메모리 DB 생성.
+- insert / getAll / getById / update / deleteById 시나리오 검증.
+
+### 13-e. AlarmEntityMapper 구현
+
+`data/local/mapper/AlarmEntityMapper.kt`
+- `AlarmEntity → Alarm` (도메인 모델)
+- `Alarm → AlarmEntity`
+
+### 13-f. AlarmEntityMapper 단위 테스트
+
+`test/.../data/local/mapper/AlarmEntityMapperTest.kt`
+- Normal / PhotoVerification 각 DismissMode에 대해 양방향 변환 정확성 검증.
+- `repeatDays` 직렬화/역직렬화 검증.
+
+### 13-g. RoomAlarmDataSource 구현
+
+`data/datasource/RoomAlarmDataSource.kt`
+- `AlarmDao` 주입, CRUD 메서드 위임.
+
+### 13-h. RoomAlarmDataSource 단위 테스트
+
+`test/.../data/datasource/RoomAlarmDataSourceTest.kt`
+- `AlarmDao`를 MockK로 mock 처리.
+- 각 메서드가 DAO에 올바르게 위임되는지 검증.
+
+### 13-i. AlarmRepositoryImpl 구현
+
+`data/repository/AlarmRepositoryImpl.kt`
+- `AlarmRepository` 인터페이스 구현.
+- `RoomAlarmDataSource`와 `AlarmEntityMapper` 사용.
+
+### 13-j. AlarmRepositoryImpl 단위 테스트
+
+`test/.../data/repository/AlarmRepositoryImplTest.kt`
+- `RoomAlarmDataSource`와 `AlarmEntityMapper`를 MockK로 mock 처리.
+- Flow 변환 및 CRUD 위임 동작 검증.
+
+### 13-k. Hilt 모듈 — prod 소스셋
+
+`app/src/prod/java/com/goldennova/upquest/di/RepositoryModule.kt`
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+    @Binds @Singleton
+    abstract fun bindAlarmRepository(impl: AlarmRepositoryImpl): AlarmRepository
+}
+```
+
+### 13-l. DatabaseModule 작성 (공통 소스셋)
+
+`di/DatabaseModule.kt`
+- `AppDatabase` 싱글톤 프로바이더.
+- `AlarmDao` 프로바이더.
+
+---
+
+## Phase 14. 사진 비교 알고리즘 (prod flavor)
+
+### 14-a. libs.versions.toml — ML Kit 버전 추가
+
+```toml
+mlkitImageLabeling = "17.0.9"
+mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", version.ref = "mlkitImageLabeling" }
+```
+
+### 14-b. PhotoVerificationUseCaseImpl 구현 (prod)
+
+`app/src/prod/java/.../usecase/PhotoVerificationUseCaseImpl.kt`
+- ML Kit `ImageLabeling` 또는 픽셀 히스토그램 비교 로직 구현.
+- 유사도 임계값(threshold) 이상 시 `true` 반환.
+
+### 14-c. PhotoVerificationUseCaseImpl 단위 테스트
+
+`test/.../usecase/PhotoVerificationUseCaseImplTest.kt`
+- 동일 이미지 경로 입력 시 `true` 반환 검증.
+- 임계값 미만 유사도 입력 시 `false` 반환 검증.
+
+### 14-d. prod Hilt 모듈에 PhotoVerificationUseCase 바인딩 추가
+
+---
+
+## Phase 15. 실제 알람음 / 진동 서비스 (prod flavor)
+
+### 15-a. AlarmSoundPlayer 인터페이스 정의
+
+`domain/alarm/AlarmSoundPlayer.kt`
+- `fun play(uri: Uri?)` / `fun stop()`
+
+### 15-b. RingtoneAlarmSoundPlayer 구현
+
+`data/alarm/RingtoneAlarmSoundPlayer.kt`
+- `RingtoneManager` 기반 기본 알람음 재생.
+- prod Hilt 모듈에 바인딩.
+
+### 15-c. RingtoneAlarmSoundPlayer 단위 테스트
+
+`test/.../data/alarm/RingtoneAlarmSoundPlayerTest.kt`
+- `RingtoneManager`를 MockK로 mock 처리.
+- `play()` 호출 시 `getRingtone()` 및 `play()` 호출 검증.
+- `stop()` 호출 시 재생 중인 Ringtone `stop()` 호출 검증.
+
+### 15-d. AlarmBroadcastReceiver에 AlarmSoundPlayer 연동
+
+- `AlarmSoundPlayer.play()` 호출.
+- `AlarmAlertActivity` 종료 시 `AlarmSoundPlayer.stop()` 호출.
+
+---
+
+## Phase 16. prod flavor 완성 검증
+
+### 16-a. 빌드 확인
+
+```bash
+./gradlew assembleProdRelease
+```
+
+### 16-b. 전체 단위 테스트 통과
+
+```bash
+./gradlew testProdReleaseUnitTest
+```
+
+### 16-c. 릴리즈 Lint 검사 통과
+
+```bash
+./gradlew lintProdRelease
+```
