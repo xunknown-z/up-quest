@@ -387,44 +387,6 @@ enum class ThemeMode { LIGHT, DARK, SYSTEM }
 
 ---
 
-## Phase 5-5. 권한 관리 인프라
-
-### 5-5-a. PermissionStatus sealed class 정의
-
-`presentation/permission/PermissionStatus.kt`
-```kotlin
-sealed interface PermissionStatus {
-    data object Granted : PermissionStatus
-    data object Denied : PermissionStatus           // 거부 (재요청 가능)
-    data object PermanentlyDenied : PermissionStatus // 영구 거부 ("다시 묻지 않음" 선택)
-}
-```
-
-### 5-5-b. PermissionRationaleDialog 공용 컴포저블 작성
-
-`presentation/components/PermissionRationaleDialog.kt`
-- 권한이 필요한 이유를 설명하는 다이얼로그.
-- "허용" 버튼 → 권한 재요청 람다 호출.
-- "취소" 버튼 → 다이얼로그 닫기.
-- 파라미터: `title`, `description`, `onConfirm`, `onDismiss`.
-
-### 5-5-c. PermissionSettingsDialog 공용 컴포저블 작성
-
-`presentation/components/PermissionSettingsDialog.kt`
-- 영구 거부 시 앱 설정으로 유도하는 다이얼로그.
-- "설정으로 이동" 버튼 → `Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)` 실행.
-- "취소" 버튼 → 다이얼로그 닫기 및 해당 기능 비활성화 안내.
-- 파라미터: `title`, `description`, `onGoToSettings`, `onDismiss`.
-
-### 5-5-d. PermissionDialog UI 테스트
-
-`androidTest/.../components/PermissionRationaleDialogTest.kt`
-`androidTest/.../components/PermissionSettingsDialogTest.kt`
-- 각 버튼 클릭 시 람다 호출 검증.
-- 텍스트 렌더링 검증.
-
----
-
 ## Phase 6. 알람 리스트 화면
 
 ### 6-a. UiState / Event / SideEffect 정의
