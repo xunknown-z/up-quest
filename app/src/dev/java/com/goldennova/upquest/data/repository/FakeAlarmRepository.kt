@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Singleton
 class FakeAlarmRepository @Inject constructor(
     private val dataSource: FakeAlarmDataSource,

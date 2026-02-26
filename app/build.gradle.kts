@@ -50,6 +50,10 @@ android {
     buildFeatures {
         compose = true
     }
+    compileOptions {
+        // java.time API를 API 24 이상에서 사용하기 위한 코어 라이브러리 디슈가링 활성화
+        isCoreLibraryDesugaringEnabled = true
+    }
 }
 
 kotlin {
@@ -109,4 +113,5 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testRuntimeOnly(libs.junit.platform.launcher)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
