@@ -48,6 +48,7 @@ class AlarmDetailViewModel @Inject constructor(
         when (event) {
             is AlarmDetailEvent.ChangeHour -> _uiState.update { it.copy(hour = event.hour) }
             is AlarmDetailEvent.ChangeMinute -> _uiState.update { it.copy(minute = event.minute) }
+            is AlarmDetailEvent.ChangeLabel -> _uiState.update { it.copy(label = event.label) }
             is AlarmDetailEvent.ToggleDay -> toggleDay(event.day)
             is AlarmDetailEvent.ChangeDismissMode -> _uiState.update { it.copy(dismissMode = event.mode) }
             is AlarmDetailEvent.Save -> save()
