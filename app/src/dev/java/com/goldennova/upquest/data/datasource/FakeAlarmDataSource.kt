@@ -11,7 +11,6 @@ import java.time.DayOfWeek
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Singleton
 class FakeAlarmDataSource @Inject constructor() {
 
