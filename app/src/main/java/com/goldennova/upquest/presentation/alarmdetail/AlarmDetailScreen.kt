@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -34,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -195,28 +198,50 @@ private fun DismissModeSection(
     onNavigateToPhotoSetup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // selectableGroup으로 RadioButton 그룹의 접근성 시맨틱을 구성한다
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .selectableGroup(),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = stringResource(R.string.dismiss_mode_label),
             style = MaterialTheme.typography.titleSmall,
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Row 전체를 클릭 영역으로 지정 — M3 권장 RadioButton 패턴
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = dismissMode is DismissMode.Normal,
+                    onClick = { onChangeDismissMode(DismissMode.Normal) },
+                    role = Role.RadioButton,
+                ),
+        ) {
             RadioButton(
                 selected = dismissMode is DismissMode.Normal,
-                onClick = { onChangeDismissMode(DismissMode.Normal) },
+                onClick = null,
             )
             Text(
                 text = stringResource(R.string.dismiss_normal),
                 modifier = Modifier.padding(start = 4.dp),
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = dismissMode is DismissMode.PhotoVerification,
+                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification("")) },
+                    role = Role.RadioButton,
+                ),
+        ) {
             RadioButton(
                 selected = dismissMode is DismissMode.PhotoVerification,
-                onClick = { onChangeDismissMode(DismissMode.PhotoVerification("")) },
+                onClick = null,
             )
             Text(
                 text = stringResource(R.string.dismiss_photo),
