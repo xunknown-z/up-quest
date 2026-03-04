@@ -1,12 +1,39 @@
 package com.goldennova.upquest.presentation.alarmalert
 
-import androidx.compose.material3.Text
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-// TODO: Phase 9에서 구현 예정
 @Composable
 fun AlarmAlertRoot(
     onDismiss: () -> Unit = {},
+    modifier: Modifier = Modifier,
+    viewModel: AlarmAlertViewModel = hiltViewModel(),
 ) {
-    Text(text = "AlarmAlert — 구현 예정")
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // SideEffect 수집 — 알람 해제 및 오류 처리
+    LaunchedEffect(Unit) {
+        viewModel.sideEffect.collect { effect ->
+            when (effect) {
+                AlarmAlertSideEffect.DismissAlarm -> onDismiss()
+                is AlarmAlertSideEffect.ShowError ->
+                    snackbarHostState.showSnackbar(effect.message)
+            }
+        }
+    }
+
+    AlarmAlertScreen(
+        uiState = uiState,
+        onEvent = viewModel::onEvent,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        modifier = modifier,
+    )
 }

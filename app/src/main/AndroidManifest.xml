@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:name=".UpQuestApplication"
@@ -25,6 +26,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 알람 울림 화면 — 잠금 화면 위에 표시하기 위해 별도 Activity 사용 -->
+        <activity
+            android:name=".presentation.alarmalert.AlarmAlertActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.UpQuest" />
     </application>
 
 </manifest>
