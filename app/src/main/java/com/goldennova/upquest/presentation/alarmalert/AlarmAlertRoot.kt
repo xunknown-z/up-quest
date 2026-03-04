@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun AlarmAlertRoot(
     onDismiss: () -> Unit = {},
+    modifier: Modifier = Modifier,
     viewModel: AlarmAlertViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -33,6 +34,6 @@ fun AlarmAlertRoot(
         uiState = uiState,
         onEvent = viewModel::onEvent,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        modifier = Modifier,
+        modifier = modifier,
     )
 }
