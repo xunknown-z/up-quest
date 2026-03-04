@@ -34,6 +34,11 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:theme="@style/Theme.UpQuest" />
+
+        <!-- AlarmManager 발송 브로드캐스트 수신 -->
+        <receiver
+            android:name=".data.alarm.AlarmBroadcastReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
