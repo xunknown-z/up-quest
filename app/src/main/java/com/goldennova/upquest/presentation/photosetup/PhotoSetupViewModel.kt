@@ -39,11 +39,14 @@ class PhotoSetupViewModel @Inject constructor(
             is PhotoSetupEvent.TakePhoto -> onPhotoTaken(event.imagePath)
             PhotoSetupEvent.RetakePhoto -> retake()
             PhotoSetupEvent.Confirm -> confirm()
+            is PhotoSetupEvent.UpdateCameraPermission ->
+                _uiState.update { it.copy(isCameraPermissionGranted = event.granted) }
         }
     }
 
-    // CameraX 촬영 완료 후 경로를 받아 UiState에 반영
+    // 권한 미허용 상태에서는 촬영 이벤트를 무시한다
     private fun onPhotoTaken(imagePath: String) {
+        if (!_uiState.value.isCameraPermissionGranted) return
         _uiState.update { it.copy(capturedImagePath = imagePath, isPhotoTaken = true) }
     }
 

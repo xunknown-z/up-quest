@@ -54,24 +54,24 @@ fun PhotoSetupRoot(
     var showRationaleDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    // 화면 진입 및 권한 상태 변화 시 처리
+    // 권한 상태 변화 시: ViewModel 동기화 + 다이얼로그/요청 처리
     // PermissionStatus는 sealed(Granted / Denied(shouldShowRationale))이므로 키로 활용 가능
     LaunchedEffect(cameraPermissionState.status) {
+        viewModel.onEvent(
+            PhotoSetupEvent.UpdateCameraPermission(cameraPermissionState.status.isGranted)
+        )
         when {
             cameraPermissionState.status.isGranted -> {
                 showRationaleDialog = false
                 showSettingsDialog = false
             }
-
             cameraPermissionState.status.shouldShowRationale ->
                 showRationaleDialog = true
-
             !hasRequestedPermission -> {
                 // 최초 진입 — 시스템 권한 다이얼로그 표시
                 hasRequestedPermission = true
                 cameraPermissionState.launchPermissionRequest()
             }
-
             else ->
                 // 영구 거부 (shouldShowRationale=false + 이미 요청) — 설정 안내
                 if (!showSettingsDialog) showSettingsDialog = true

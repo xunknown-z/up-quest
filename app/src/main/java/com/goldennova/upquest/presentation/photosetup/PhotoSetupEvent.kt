@@ -5,4 +5,6 @@ sealed interface PhotoSetupEvent {
     data class TakePhoto(val imagePath: String) : PhotoSetupEvent
     data object RetakePhoto : PhotoSetupEvent
     data object Confirm : PhotoSetupEvent
+    // Root(Accompanist)가 권한 상태 변화를 ViewModel에 동기화
+    data class UpdateCameraPermission(val granted: Boolean) : PhotoSetupEvent
 }
