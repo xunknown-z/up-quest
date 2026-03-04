@@ -1,0 +1,10 @@
+package com.goldennova.upquest.presentation.alarmalert
+
+sealed interface AlarmAlertEvent {
+    // 일반 모드 알람 해제
+    data object DismissNormal : AlarmAlertEvent
+    // 사진 인증 화면으로 이동 요청
+    data object TakeVerificationPhoto : AlarmAlertEvent
+    // 사진 인증 완료 — 촬영된 이미지 경로 전달
+    data class PhotoVerified(val capturedImagePath: String) : AlarmAlertEvent
+}
