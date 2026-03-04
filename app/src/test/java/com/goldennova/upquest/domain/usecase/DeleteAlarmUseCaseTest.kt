@@ -1,5 +1,6 @@
 package com.goldennova.upquest.domain.usecase
 
+import com.goldennova.upquest.domain.alarm.AlarmScheduler
 import com.goldennova.upquest.domain.repository.AlarmRepository
 import io.mockk.coEvery
 import io.mockk.coJustRun
@@ -15,12 +16,16 @@ import java.io.IOException
 class DeleteAlarmUseCaseTest {
 
     private lateinit var repository: AlarmRepository
+    private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var useCase: DeleteAlarmUseCase
 
     @BeforeEach
     fun setUp() {
         repository = mockk()
-        useCase = DeleteAlarmUseCase(repository)
+        alarmScheduler = mockk(relaxed = true)
+        useCase = DeleteAlarmUseCase(repository, alarmScheduler)
+        // 기본적으로 알람을 찾지 못하는 것으로 설정 (각 테스트에서 필요 시 재정의)
+        coEvery { repository.getAlarmById(any()) } returns null
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.goldennova.upquest.domain.usecase
 
+import com.goldennova.upquest.domain.alarm.AlarmScheduler
 import com.goldennova.upquest.domain.model.Alarm
 import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.domain.repository.AlarmRepository
@@ -19,12 +20,14 @@ import java.time.DayOfWeek
 class SaveAlarmUseCaseTest {
 
     private lateinit var repository: AlarmRepository
+    private lateinit var alarmScheduler: AlarmScheduler
     private lateinit var useCase: SaveAlarmUseCase
 
     @BeforeEach
     fun setUp() {
         repository = mockk()
-        useCase = SaveAlarmUseCase(repository)
+        alarmScheduler = mockk(relaxed = true)
+        useCase = SaveAlarmUseCase(repository, alarmScheduler)
     }
 
     @Test
