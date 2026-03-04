@@ -31,4 +31,6 @@
     <string name="permission_allow">허용</string>
     <string name="permission_cancel">취소</string>
     <string name="alarm_list_empty">설정된 알람이 없습니다.\n+ 버튼을 눌러 추가하세요.</string>
+    <string name="alarm_alert_title">알람</string>
+    <string name="alarm_alert_take_photo">사진 찍어서 해제</string>
 </resources>

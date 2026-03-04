@@ -30,4 +30,6 @@
     <string name="permission_allow">Allow</string>
     <string name="permission_cancel">Cancel</string>
     <string name="alarm_list_empty">No alarms set.\nTap + to add one.</string>
+    <string name="alarm_alert_title">Alarm</string>
+    <string name="alarm_alert_take_photo">Take Photo to Dismiss</string>
 </resources>
