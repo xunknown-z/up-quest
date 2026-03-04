@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".UpQuestApplication"
@@ -39,6 +40,15 @@
         <receiver
             android:name=".data.alarm.AlarmBroadcastReceiver"
             android:exported="false" />
+
+        <!-- 재부팅 후 활성 알람 재등록 -->
+        <receiver
+            android:name=".data.alarm.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
