@@ -108,6 +108,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
+    // Accompanist
+    implementation(libs.accompanist.permissions)
+
     // 테스트
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockk)
