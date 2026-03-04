@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,6 +41,7 @@ fun AlarmAlertScreen(
     uiState: AlarmAlertUiState,
     onEvent: (AlarmAlertEvent) -> Unit,
     modifier: Modifier = Modifier,
+    snackbarHost: @Composable () -> Unit = {},
 ) {
     val alarm = uiState.alarm
     val isPhotoMode = alarm?.dismissMode is DismissMode.PhotoVerification
@@ -47,51 +49,60 @@ fun AlarmAlertScreen(
     // CameraX 바인딩 완료 후 전달받은 촬영 트리거 함수
     var captureAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        // PhotoVerification 모드: 전체 배경을 카메라 프리뷰로 채운다
-        if (isPhotoMode) {
-            CameraPreview(
-                onPhotoTaken = { path -> onEvent(AlarmAlertEvent.PhotoVerified(path)) },
-                onCaptureFunctionReady = { captureAction = it },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
-        Column(
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = snackbarHost,
+    ) { innerPadding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+                .padding(innerPadding),
         ) {
-            Spacer(modifier = Modifier.weight(1f))
-
-            // 흔들림 애니메이션이 적용된 알람 정보 카드
-            AlarmInfoCard(
-                alarm = alarm,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // 해제 방식에 따른 액션 버튼
+            // PhotoVerification 모드: 전체 배경을 카메라 프리뷰로 채운다
             if (isPhotoMode) {
-                Button(
-                    onClick = { captureAction?.invoke() },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(R.string.alarm_alert_take_photo))
-                }
-            } else {
-                Button(
-                    onClick = { onEvent(AlarmAlertEvent.DismissNormal) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(R.string.dismiss_normal))
-                }
+                CameraPreview(
+                    onPhotoTaken = { path -> onEvent(AlarmAlertEvent.PhotoVerified(path)) },
+                    onCaptureFunctionReady = { captureAction = it },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
+
+                // 흔들림 애니메이션이 적용된 알람 정보 카드
+                AlarmInfoCard(
+                    alarm = alarm,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // 해제 방식에 따른 액션 버튼
+                if (isPhotoMode) {
+                    Button(
+                        onClick = { captureAction?.invoke() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(R.string.alarm_alert_take_photo))
+                    }
+                } else {
+                    Button(
+                        onClick = { onEvent(AlarmAlertEvent.DismissNormal) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = stringResource(R.string.dismiss_normal))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
