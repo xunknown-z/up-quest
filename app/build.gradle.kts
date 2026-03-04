@@ -43,8 +43,8 @@ android {
         }
     }
     testOptions {
-        unitTests.all {
-            it.useJUnitPlatform()
+        unitTests {
+            all { it.useJUnitPlatform() }
         }
     }
     buildFeatures {
@@ -113,5 +113,6 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.junit.vintage.engine)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 }
