@@ -14,6 +14,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import java.time.DayOfWeek
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -25,7 +26,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
-import java.time.DayOfWeek
 
 /**
  * [PhotoSetupViewModel] 단위 테스트.
@@ -97,16 +97,43 @@ class PhotoSetupViewModelTest {
         assertNull(state.capturedImagePath)
         assertFalse(state.isPhotoTaken)
         assertFalse(state.isCameraReady)
+        assertFalse(state.isCameraPermissionGranted)
     }
 
     // endregion
 
-    // region TakePhoto 이벤트
+    // region UpdateCameraPermission 이벤트
 
     @Test
-    fun `TakePhoto 이벤트 처리 후 capturedImagePath가 업데이트된다`() =
+    fun `UpdateCameraPermission(true) 이벤트 처리 후 isCameraPermissionGranted가 true가 된다`() =
         runTest(mainDispatcherExtension.testDispatcher) {
             val viewModel = createViewModel()
+
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
+
+            assertTrue(viewModel.uiState.value.isCameraPermissionGranted)
+        }
+
+    @Test
+    fun `UpdateCameraPermission(false) 이벤트 처리 후 isCameraPermissionGranted가 false가 된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel()
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
+
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(false))
+
+            assertFalse(viewModel.uiState.value.isCameraPermissionGranted)
+        }
+
+    // endregion
+
+    // region TakePhoto 이벤트 — 권한 허용 상태
+
+    @Test
+    fun `권한 허용 상태에서 TakePhoto 이벤트 처리 후 capturedImagePath가 업데이트된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel()
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
 
             viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
 
@@ -114,13 +141,38 @@ class PhotoSetupViewModelTest {
         }
 
     @Test
-    fun `TakePhoto 이벤트 처리 후 isPhotoTaken이 true가 된다`() =
+    fun `권한 허용 상태에서 TakePhoto 이벤트 처리 후 isPhotoTaken이 true가 된다`() =
         runTest(mainDispatcherExtension.testDispatcher) {
             val viewModel = createViewModel()
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
 
             viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
 
             assertTrue(viewModel.uiState.value.isPhotoTaken)
+        }
+
+    // endregion
+
+    // region TakePhoto 이벤트 — 권한 미허용 상태 (guard)
+
+    @Test
+    fun `권한 미허용 상태에서 TakePhoto 이벤트를 처리하면 capturedImagePath가 변경되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel() // isCameraPermissionGranted = false (기본값)
+
+            viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
+
+            assertNull(viewModel.uiState.value.capturedImagePath)
+        }
+
+    @Test
+    fun `권한 미허용 상태에서 TakePhoto 이벤트를 처리하면 isPhotoTaken이 변경되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel() // isCameraPermissionGranted = false (기본값)
+
+            viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
+
+            assertFalse(viewModel.uiState.value.isPhotoTaken)
         }
 
     // endregion
@@ -131,6 +183,7 @@ class PhotoSetupViewModelTest {
     fun `RetakePhoto 이벤트 처리 후 capturedImagePath가 초기화된다`() =
         runTest(mainDispatcherExtension.testDispatcher) {
             val viewModel = createViewModel()
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
             viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
 
             viewModel.onEvent(PhotoSetupEvent.RetakePhoto)
@@ -142,6 +195,7 @@ class PhotoSetupViewModelTest {
     fun `RetakePhoto 이벤트 처리 후 isPhotoTaken이 false가 된다`() =
         runTest(mainDispatcherExtension.testDispatcher) {
             val viewModel = createViewModel()
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
             viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
 
             viewModel.onEvent(PhotoSetupEvent.RetakePhoto)
@@ -160,6 +214,7 @@ class PhotoSetupViewModelTest {
             coEvery { getAlarmByIdUseCase(1L) } returns Result.success(alarm)
             coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
             val viewModel = createViewModel(alarmId = 1L)
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
             viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
             val effects = mutableListOf<PhotoSetupSideEffect>()
             val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
@@ -178,6 +233,7 @@ class PhotoSetupViewModelTest {
             coEvery { getAlarmByIdUseCase(1L) } returns Result.success(alarm)
             coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
             val viewModel = createViewModel(alarmId = 1L)
+            viewModel.onEvent(PhotoSetupEvent.UpdateCameraPermission(true))
             viewModel.onEvent(PhotoSetupEvent.TakePhoto("/storage/photo.jpg"))
 
             viewModel.onEvent(PhotoSetupEvent.Confirm)
@@ -186,7 +242,7 @@ class PhotoSetupViewModelTest {
                 saveAlarmUseCase(match {
                     val mode = it.dismissMode
                     mode is DismissMode.PhotoVerification &&
-                            mode.referencePhotoPath == "/storage/photo.jpg"
+                        mode.referencePhotoPath == "/storage/photo.jpg"
                 })
             }
         }
