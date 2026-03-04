@@ -8,6 +8,7 @@ import io.mockk.coEvery
 import io.mockk.coJustRun
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -210,5 +211,93 @@ class SaveAlarmUseCaseTest {
         // then
         assertTrue(result.isFailure)
         assertInstanceOf(IOException::class.java, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `활성화 알람 신규 저장 시 schedule을 호출한다`() = runTest {
+        // given
+        val alarm = Alarm(
+            id = 0L,
+            hour = 7,
+            minute = 0,
+            repeatDays = emptySet(),
+            label = "기상",
+            isEnabled = true,
+            dismissMode = DismissMode.Normal,
+        )
+        coEvery { repository.insertAlarm(alarm) } returns 10L
+
+        // when
+        useCase(alarm)
+
+        // then — 저장된 ID(10L)가 반영된 알람으로 schedule 호출
+        verify(exactly = 1) { alarmScheduler.schedule(alarm.copy(id = 10L)) }
+        verify(exactly = 0) { alarmScheduler.cancel(any()) }
+    }
+
+    @Test
+    fun `비활성화 알람 신규 저장 시 cancel을 호출한다`() = runTest {
+        // given
+        val alarm = Alarm(
+            id = 0L,
+            hour = 7,
+            minute = 0,
+            repeatDays = emptySet(),
+            label = "비활성",
+            isEnabled = false,
+            dismissMode = DismissMode.Normal,
+        )
+        coEvery { repository.insertAlarm(alarm) } returns 11L
+
+        // when
+        useCase(alarm)
+
+        // then
+        verify(exactly = 1) { alarmScheduler.cancel(alarm.copy(id = 11L)) }
+        verify(exactly = 0) { alarmScheduler.schedule(any()) }
+    }
+
+    @Test
+    fun `활성화 알람 업데이트 시 schedule을 호출한다`() = runTest {
+        // given
+        val alarm = Alarm(
+            id = 5L,
+            hour = 8,
+            minute = 30,
+            repeatDays = emptySet(),
+            label = "출근",
+            isEnabled = true,
+            dismissMode = DismissMode.Normal,
+        )
+        coJustRun { repository.updateAlarm(alarm) }
+
+        // when
+        useCase(alarm)
+
+        // then
+        verify(exactly = 1) { alarmScheduler.schedule(alarm) }
+        verify(exactly = 0) { alarmScheduler.cancel(any()) }
+    }
+
+    @Test
+    fun `비활성화 알람 업데이트 시 cancel을 호출한다`() = runTest {
+        // given
+        val alarm = Alarm(
+            id = 5L,
+            hour = 8,
+            minute = 30,
+            repeatDays = emptySet(),
+            label = "출근",
+            isEnabled = false,
+            dismissMode = DismissMode.Normal,
+        )
+        coJustRun { repository.updateAlarm(alarm) }
+
+        // when
+        useCase(alarm)
+
+        // then
+        verify(exactly = 1) { alarmScheduler.cancel(alarm) }
+        verify(exactly = 0) { alarmScheduler.schedule(any()) }
     }
 }
