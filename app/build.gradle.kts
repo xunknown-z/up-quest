@@ -118,4 +118,7 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit.vintage.engine)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
+
+    // ML Kit (prod flavor 전용)
+    "prodImplementation"(libs.mlkit.image.labeling)
 }
