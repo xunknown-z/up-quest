@@ -2,8 +2,7 @@ package com.goldennova.upquest.domain.usecase
 
 import android.graphics.BitmapFactory
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.label.ImageLabeling
-import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
+import com.google.mlkit.vision.label.ImageLabeler
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -15,14 +14,16 @@ import kotlin.coroutines.suspendCoroutine
  * 두 이미지에서 각각 레이블을 추출한 뒤,
  * 공통 레이블 수 / 전체 레이블 수(합집합)로 Jaccard 유사도를 계산한다.
  * 유사도가 [SIMILARITY_THRESHOLD] 이상이면 동일 피사체로 판단하여 true를 반환한다.
+ *
+ * @param labeler ML Kit [ImageLabeler] — 생성자 주입으로 단위 테스트 시 mock 대체 가능.
  */
-class PhotoVerificationUseCaseImpl @Inject constructor() : PhotoVerificationUseCase {
+class PhotoVerificationUseCaseImpl @Inject constructor(
+    private val labeler: ImageLabeler,
+) : PhotoVerificationUseCase {
 
     companion object {
-        // 레이블 신뢰도 최소 기준 (0.0 ~ 1.0)
-        private const val CONFIDENCE_THRESHOLD = 0.7f
         // 유사 피사체 판단 Jaccard 유사도 임계값
-        private const val SIMILARITY_THRESHOLD = 0.3f
+        const val SIMILARITY_THRESHOLD = 0.3f
     }
 
     override suspend fun verify(capturedPath: String, referencePath: String): Boolean {
@@ -38,15 +39,10 @@ class PhotoVerificationUseCaseImpl @Inject constructor() : PhotoVerificationUseC
         return (intersection.toFloat() / union) >= SIMILARITY_THRESHOLD
     }
 
-    /** 이미지 경로에서 ML Kit ImageLabeler로 레이블 Set을 추출한다. */
+    /** 이미지 경로에서 ML Kit [ImageLabeler]로 레이블 Set을 추출한다. */
     private suspend fun extractLabels(imagePath: String): Set<String> {
         val bitmap = BitmapFactory.decodeFile(imagePath) ?: return emptySet()
         val image = InputImage.fromBitmap(bitmap, 0)
-        val labeler = ImageLabeling.getClient(
-            ImageLabelerOptions.Builder()
-                .setConfidenceThreshold(CONFIDENCE_THRESHOLD)
-                .build(),
-        )
 
         return suspendCoroutine { continuation ->
             labeler.process(image)

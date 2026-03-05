@@ -1,6 +1,6 @@
 package com.goldennova.upquest.domain.usecase
 
-import com.goldennova.upquest.usecase.PhotoVerificationUseCaseImpl
+import com.goldennova.upquest.domain.usecase.PhotoVerificationUseCaseImpl
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
