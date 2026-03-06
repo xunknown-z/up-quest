@@ -910,9 +910,72 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
 
 ---
 
-## Phase 17. 치명적 버그 수정
+## Phase 17. 알림(Notification) 연동
 
-### 17-a. 반복 알람 재등록 — AlarmAlertViewModel 수정
+> **최우선 과제**: Android 10+ 백그라운드 Activity 실행 제한으로 인해 알람 발생 시 `AlarmAlertActivity`가 직접 실행되지 않음.
+> `setFullScreenIntent()` 포함 고우선순위 Notification으로 대체해야 앱이 닫혀 있어도 알람 화면이 표시됨.
+
+### 17-a. AndroidManifest.xml — USE_FULL_SCREEN_INTENT 권한 추가
+
+```xml
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+```
+
+- Android 14(API 34)+에서는 `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` Intent로 사용자 허용 유도 필요.
+
+### 17-b. NotificationHelper 구현
+
+`data/alarm/NotificationHelper.kt`
+- `@Singleton` + `@Inject constructor(@ApplicationContext context: Context)`.
+- `createChannel()`: `NotificationChannel` (id: `"alarm_channel"`, importance: `IMPORTANCE_HIGH`, enableVibration: false) 생성.
+- `showAlarmNotification(alarmId: Long, label: String)`:
+  - `AlarmAlertActivity`로 이동하는 `PendingIntent` 생성 (`FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT`).
+  - `setFullScreenIntent(pendingIntent, true)` 설정 — 잠금/백그라운드 상태에서도 `AlarmAlertActivity` 실행.
+  - `setOngoing(true)` — 스와이프 삭제 방지.
+  - `setCategory(Notification.CATEGORY_ALARM)` 설정.
+  - `NotificationManagerCompat.notify(alarmId.toInt(), notification)` 발송.
+- `cancelAlarmNotification(alarmId: Long)`: `NotificationManagerCompat.cancel(alarmId.toInt())` 호출.
+
+### 17-c. UpQuestApplication — NotificationChannel 초기화
+
+`UpQuestApplication.kt`
+- `NotificationHelper` Hilt 필드 주입.
+- `onCreate()` 에서 `notificationHelper.createChannel()` 호출.
+
+### 17-d. AlarmBroadcastReceiver — startActivity 제거 및 Notification 발송으로 교체
+
+`data/alarm/AlarmBroadcastReceiver.kt`
+- `NotificationHelper` 필드 주입.
+- `onReceive()` 에서 기존 `context.startActivity()` 직접 호출 **제거**.
+- `notificationHelper.showAlarmNotification(alarmId, label)` 호출로 대체.
+  - Intent extra에서 `alarmId`와 함께 `label`도 전달받도록 `AlarmManagerScheduler` PendingIntent extra 추가.
+- `alarmSoundPlayer.play(null)` 호출은 유지.
+
+### 17-e. AlarmAlertActivity — Notification 취소
+
+`presentation/alarmalert/AlarmAlertActivity.kt`
+- `NotificationHelper` 필드 주입.
+- `onDestroy()` 에서 `notificationHelper.cancelAlarmNotification(alarmId)` 호출.
+- `alarmId`는 `intent.getLongExtra(EXTRA_ALARM_ID, -1L)` 로 읽음.
+
+### 17-f. AlarmManagerScheduler — label extra 추가
+
+`data/alarm/AlarmManagerScheduler.kt`
+- `PendingIntent` 생성 시 `alarmId` 외에 `alarm.label` 도 extra로 포함.
+  - key: `AlarmAlertActivity.EXTRA_ALARM_ID`, `"extra_alarm_label"`.
+
+### 17-g. NotificationHelper 단위 테스트
+
+`test/.../data/alarm/NotificationHelperTest.kt`
+- `NotificationManagerCompat`을 MockK로 mock 처리.
+- `showAlarmNotification()` 호출 시 `notify()` 호출 및 alarmId 파라미터 검증.
+- `cancelAlarmNotification()` 호출 시 `cancel(alarmId.toInt())` 호출 검증.
+
+---
+
+## Phase 18. 치명적 버그 수정
+
+### 18-a. 반복 알람 재등록 — AlarmAlertViewModel 수정
 
 **문제**: 반복 요일이 설정된 알람이 1회 울린 뒤 다음 회차를 재등록하는 로직이 없어, 반복 알람이 한 번 울리고 영구적으로 꺼짐.
 
@@ -922,14 +985,14 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
   - `alarm.repeatDays.isNotEmpty()` 이면 `AlarmScheduler.schedule(alarm)` 재호출.
   - 반복 없는 알람(`repeatDays.isEmpty()`)은 비활성화(`AlarmRepository.toggleAlarm(id, false)`) 후 종료.
 
-### 17-b. 반복 알람 재등록 — AlarmAlertViewModel 단위 테스트 업데이트
+### 18-b. 반복 알람 재등록 — AlarmAlertViewModel 단위 테스트 업데이트
 
 `test/.../alarmalert/AlarmAlertViewModelTest.kt`
 - `AlarmScheduler`를 MockK로 mock 처리.
 - 반복 알람 해제 시 `AlarmScheduler.schedule()` 재호출 검증.
 - 비반복 알람 해제 시 `AlarmRepository.toggleAlarm(false)` 호출 및 `schedule()` 미호출 검증.
 
-### 17-c. referencePath null 가드 — AlarmAlertViewModel 수정
+### 18-c. referencePath null 가드 — AlarmAlertViewModel 수정
 
 **문제**: 사진 등록 없이 PhotoVerification 모드로 저장된 알람이 울리면 `referencePath = null`인 채로 `verify()` 가 호출되어 런타임 크래시 위험.
 
@@ -941,12 +1004,12 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
 - `suspend fun verify(capturedPath: String, referencePath: String): Boolean` — `referencePath`를 `String`(non-null)으로 유지.
 - 호출부에서 null 가드를 완전히 처리하여 UseCase 레이어에 null이 도달하지 않도록 보장.
 
-### 17-d. referencePath null 가드 — 단위 테스트 추가
+### 18-d. referencePath null 가드 — 단위 테스트 추가
 
 `test/.../alarmalert/AlarmAlertViewModelTest.kt`
 - `referencePhotoPath = null`인 PhotoVerification 알람으로 `PhotoVerified` 이벤트 전달 시 `verify()` 미호출 및 `ShowError` SideEffect 방출 검증.
 
-### 17-e. USE_EXACT_ALARM 권한 정리
+### 18-e. USE_EXACT_ALARM 권한 정리
 
 **문제**: `USE_EXACT_ALARM`은 Android 13+에서 시스템이 허가한 알람/시계 앱에만 부여됨. 일반 앱이 선언하면 Google Play 심사에서 배포 차단될 수 있음.
 
@@ -964,7 +1027,7 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
 - `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM` Intent로 시스템 설정 화면 이동.
 - `lifecycleState == RESUMED` 복귀 시 권한 재확인 및 UiState 갱신.
 
-### 17-f. AlarmManagerScheduler 단위 테스트 업데이트
+### 18-f. AlarmManagerScheduler 단위 테스트 업데이트
 
 `test/.../data/alarm/AlarmManagerSchedulerTest.kt`
 - `canScheduleExactAlarms() = true` → `setExactAndAllowWhileIdle()` 호출 검증 (기존 테스트 유지).
@@ -972,9 +1035,9 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
 
 ---
 
-## Phase 18. 진동 기능
+## Phase 19. 진동 기능
 
-### 18-a. VibrationPlayer 인터페이스 정의
+### 19-a. VibrationPlayer 인터페이스 정의
 
 `domain/alarm/VibrationPlayer.kt`
 ```kotlin
@@ -984,31 +1047,31 @@ interface VibrationPlayer {
 }
 ```
 
-### 18-b. SystemVibrationPlayer 구현 (공통 소스셋)
+### 19-b. SystemVibrationPlayer 구현 (공통 소스셋)
 
 `data/alarm/SystemVibrationPlayer.kt`
 - `Vibrator` (API < 31) / `VibratorManager` (API 31+) 분기 처리.
 - 패턴: 0ms 대기 → 500ms 진동 → 500ms 정지 반복 (`VibrationEffect.createWaveform()`).
 - `@Singleton` + `@Inject constructor(@ApplicationContext context: Context)`.
 
-### 18-c. Hilt 모듈 — VibrationPlayer 바인딩
+### 19-c. Hilt 모듈 — VibrationPlayer 바인딩
 
 `di/SchedulerModule.kt` (공통 소스셋, 기존 파일에 추가)
 - `VibrationPlayer → SystemVibrationPlayer` `@Binds @Singleton` 바인딩 추가.
 
-### 18-d. AlarmBroadcastReceiver에 VibrationPlayer 연동
+### 19-d. AlarmBroadcastReceiver에 VibrationPlayer 연동
 
 `data/alarm/AlarmBroadcastReceiver.kt`
 - `VibrationPlayer` 필드 주입 추가.
 - `onReceive()` 에서 `alarmSoundPlayer.play()` 와 함께 `vibrationPlayer.vibrate()` 호출.
 
-### 18-e. AlarmAlertActivity에 VibrationPlayer 연동
+### 19-e. AlarmAlertActivity에 VibrationPlayer 연동
 
 `presentation/alarmalert/AlarmAlertActivity.kt`
 - `VibrationPlayer` 필드 주입 추가.
 - `onDestroy()` 에서 `alarmSoundPlayer.stop()` 과 함께 `vibrationPlayer.cancel()` 호출.
 
-### 18-f. SystemVibrationPlayer 단위 테스트
+### 19-f. SystemVibrationPlayer 단위 테스트
 
 `test/.../data/alarm/SystemVibrationPlayerTest.kt`
 - `Vibrator` / `VibratorManager`를 MockK로 mock 처리.
@@ -1017,14 +1080,14 @@ interface VibrationPlayer {
 
 ---
 
-## Phase 19. 알람음 선택 기능
+## Phase 20. 알람음 선택 기능
 
-### 19-a. Alarm 도메인 모델에 ringtoneUri 필드 추가
+### 20-a. Alarm 도메인 모델에 ringtoneUri 필드 추가
 
 `domain/model/Alarm.kt`
 - `val ringtoneUri: String? = null` 필드 추가. (`null` = 시스템 기본 알람음)
 
-### 19-b. AlarmEntity에 ringtoneUri 컬럼 추가 및 DB 마이그레이션
+### 20-b. AlarmEntity에 ringtoneUri 컬럼 추가 및 DB 마이그레이션
 
 `data/local/entity/AlarmEntity.kt`
 - `val ringtoneUri: String? = null` 컬럼 추가.
@@ -1034,17 +1097,17 @@ interface VibrationPlayer {
 - `MIGRATION_1_2` 정의: `ALTER TABLE alarms ADD COLUMN ringtoneUri TEXT`.
 - `addMigrations(MIGRATION_1_2)` 등록.
 
-### 19-c. AlarmEntityMapper 업데이트
+### 20-c. AlarmEntityMapper 업데이트
 
 `data/local/mapper/AlarmEntityMapper.kt`
 - `ringtoneUri` 필드 양방향 매핑 추가.
 
-### 19-d. AlarmEntityMapper 단위 테스트 업데이트
+### 20-d. AlarmEntityMapper 단위 테스트 업데이트
 
 `test/.../data/local/mapper/AlarmEntityMapperTest.kt`
 - `ringtoneUri` null / non-null 각 경우 양방향 변환 검증 추가.
 
-### 19-e. UiState / Event 업데이트 — AlarmDetailContract
+### 20-e. UiState / Event 업데이트 — AlarmDetailContract
 
 `presentation/alarmdetail/AlarmDetailUiState.kt`
 - `ringtoneUri: String?` 필드 추가.
@@ -1052,27 +1115,27 @@ interface VibrationPlayer {
 `presentation/alarmdetail/AlarmDetailEvent.kt`
 - `data class ChangeRingtone(val uri: String?) : AlarmDetailEvent` 추가.
 
-### 19-f. AlarmDetailViewModel 업데이트
+### 20-f. AlarmDetailViewModel 업데이트
 
 `presentation/alarmdetail/AlarmDetailViewModel.kt`
 - `ChangeRingtone` 이벤트 처리 — UiState `ringtoneUri` 업데이트.
 - 기존 알람 로드 시 `ringtoneUri` 복원.
 - `Save` 이벤트 처리 시 `ringtoneUri` 포함하여 `SaveAlarmUseCase` 호출.
 
-### 19-g. AlarmDetailScreen — 알람음 선택 UI 추가
+### 20-g. AlarmDetailScreen — 알람음 선택 UI 추가
 
 `presentation/alarmdetail/AlarmDetailScreen.kt`
 - 알람음 선택 행(Row) 추가: 현재 선택된 알람음 이름 표시 + 변경 버튼.
 - 버튼 클릭 시 Android 기본 링톤 선택 Intent(`RingtoneManager.ACTION_RINGTONE_PICKER`) 실행을 위한 `onPickRingtone: () -> Unit` 람다 파라미터 추가.
 - `null`인 경우 "기본 알람음" 문자열 표시 (strings.xml에 `ringtone_default` 키 추가).
 
-### 19-h. AlarmDetailRoot — 링톤 선택 결과 처리
+### 20-h. AlarmDetailRoot — 링톤 선택 결과 처리
 
 `presentation/alarmdetail/AlarmDetailRoot.kt`
 - `rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult())` 등록.
 - 결과에서 `RingtoneManager.EXTRA_RINGTONE_PICKED_URI` 추출 후 `ChangeRingtone` 이벤트 발송.
 
-### 19-i. RingtoneAlarmSoundPlayer — 선택된 URI 반영
+### 20-i. RingtoneAlarmSoundPlayer — 선택된 URI 반영
 
 `data/alarm/RingtoneAlarmSoundPlayer.kt`
 - 현재 `play(uri = null)` 고정 호출 → 알람의 `ringtoneUri`를 `Uri.parse()`로 변환 후 전달.
@@ -1081,52 +1144,11 @@ interface VibrationPlayer {
 - Intent extra로 `ringtoneUri`를 함께 전달받아 `alarmSoundPlayer.play(uri)` 에 적용.
 - `AlarmManagerScheduler`에서 `PendingIntent` 생성 시 `ringtoneUri` extra 포함.
 
-### 19-j. AlarmDetailViewModel 단위 테스트 업데이트
+### 20-j. AlarmDetailViewModel 단위 테스트 업데이트
 
 `test/.../alarmdetail/AlarmDetailViewModelTest.kt`
 - `ChangeRingtone` 이벤트 처리 후 UiState `ringtoneUri` 변화 검증.
 - Save 시 `ringtoneUri`가 `SaveAlarmUseCase` 파라미터에 포함되는지 검증.
-
----
-
-## Phase 20. 알림(Notification) 연동
-
-### 20-a. NotificationHelper 구현
-
-`data/alarm/NotificationHelper.kt`
-- `@Singleton` + `@Inject constructor(@ApplicationContext context: Context)`.
-- `createChannel()`: `NotificationChannel` (id: `"alarm_channel"`, importance: `IMPORTANCE_HIGH`) 생성. 앱 시작 시(`UpQuestApplication.onCreate`) 호출.
-- `showAlarmNotification(alarmId: Long, label: String)`: `AlarmAlertActivity`로 이동하는 `PendingIntent`를 담은 `Notification` 발송.
-  - `setFullScreenIntent()` 로 잠금 화면에서도 표시.
-  - `setOngoing(true)` 로 스와이프 삭제 방지.
-- `cancelAlarmNotification(alarmId: Long)`: 알람 해제 시 Notification 취소.
-
-### 20-b. UpQuestApplication — NotificationChannel 초기화
-
-`UpQuestApplication.kt`
-- `onCreate()` 에서 `NotificationHelper.createChannel()` 호출.
-- `NotificationHelper` Hilt 필드 주입.
-
-### 20-c. AlarmBroadcastReceiver에 NotificationHelper 연동
-
-`data/alarm/AlarmBroadcastReceiver.kt`
-- `NotificationHelper` 필드 주입.
-- `onReceive()` 에서 `AlarmAlertActivity` 실행과 함께 `notificationHelper.showAlarmNotification()` 호출.
-- Intent extra로 알람 라벨(`label`)도 함께 전달.
-
-### 20-d. AlarmAlertActivity — 알람 해제 시 Notification 취소
-
-`presentation/alarmalert/AlarmAlertActivity.kt`
-- `NotificationHelper` 필드 주입.
-- `onDestroy()` 에서 `notificationHelper.cancelAlarmNotification(alarmId)` 호출.
-- `alarmId`는 `intent.getLongExtra(EXTRA_ALARM_ID, -1L)` 로 읽음.
-
-### 20-e. NotificationHelper 단위 테스트
-
-`test/.../data/alarm/NotificationHelperTest.kt`
-- `NotificationManager`를 MockK로 mock 처리.
-- `showAlarmNotification()` 호출 시 `notify()` 파라미터(알람 ID, Notification) 검증.
-- `cancelAlarmNotification()` 호출 시 `cancel(alarmId)` 호출 검증.
 
 ---
 
