@@ -8,8 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import com.goldennova.upquest.domain.alarm.AlarmSoundPlayer
 import com.goldennova.upquest.presentation.theme.UpQuestTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
  * 알람 울림 화면 전용 Activity.
@@ -19,9 +21,14 @@ import dagger.hilt.android.AndroidEntryPoint
  *
  * 잠금 화면 위에 표시되어야 하므로 API 27 이상은 [setShowWhenLocked] / [setTurnScreenOn]을,
  * 그 이하는 WindowManager 플래그를 사용한다.
+ *
+ * Activity 종료 시([onDestroy]) [AlarmSoundPlayer.stop]을 호출해 알람음을 중지한다.
  */
 @AndroidEntryPoint
 class AlarmAlertActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var alarmSoundPlayer: AlarmSoundPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 잠금 화면 위에 표시 + 화면 깨우기 플래그 설정
@@ -46,6 +53,12 @@ class AlarmAlertActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Activity 종료(알람 해제 또는 강제 종료) 시 알람음 중지
+        alarmSoundPlayer.stop()
     }
 
     companion object {

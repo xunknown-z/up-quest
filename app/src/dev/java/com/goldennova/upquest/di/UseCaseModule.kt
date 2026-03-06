@@ -1,5 +1,7 @@
 package com.goldennova.upquest.di
 
+import com.goldennova.upquest.data.alarm.NoOpAlarmSoundPlayer
+import com.goldennova.upquest.domain.alarm.AlarmSoundPlayer
 import com.goldennova.upquest.domain.usecase.PhotoVerificationUseCase
 import com.goldennova.upquest.domain.usecase.PhotoVerificationUseCaseImpl
 import dagger.Binds
@@ -17,4 +19,10 @@ abstract class UseCaseModule {
     abstract fun bindPhotoVerificationUseCase(
         impl: PhotoVerificationUseCaseImpl,
     ): PhotoVerificationUseCase
+
+    @Binds
+    @Singleton
+    abstract fun bindAlarmSoundPlayer(
+        impl: NoOpAlarmSoundPlayer,
+    ): AlarmSoundPlayer
 }
