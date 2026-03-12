@@ -2,6 +2,7 @@ package com.goldennova.upquest.presentation.alarmdetail
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -65,11 +66,13 @@ fun AlarmDetailRoot(
                 showNotificationRationaleDialog = false
                 showNotificationSettingsDialog = false
             }
+
             pState.status.shouldShowRationale -> showNotificationRationaleDialog = true
             !hasRequestedNotificationPermission -> {
                 hasRequestedNotificationPermission = true
                 pState.launchPermissionRequest()
             }
+
             else -> if (!showNotificationSettingsDialog) showNotificationSettingsDialog = true
         }
     }
@@ -85,6 +88,20 @@ fun AlarmDetailRoot(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager?.canScheduleExactAlarms() == false) {
                 showExactAlarmSettingsDialog = true
+            }
+        }
+    }
+
+    // ③ USE_FULL_SCREEN_INTENT 권한 처리 (API 34+, 특수 권한)
+    // 미허용 시 잠금 화면에서 알람 화면이 표시되지 않으므로 설정으로 안내한다
+    val notificationManager = remember { context.getSystemService(NotificationManager::class.java) }
+
+    var showFullScreenIntentDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (!notificationManager.canUseFullScreenIntent()) {
+                showFullScreenIntentDialog = true
             }
         }
     }
@@ -112,6 +129,15 @@ fun AlarmDetailRoot(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (alarmManager?.canScheduleExactAlarms() == false && !showExactAlarmSettingsDialog) {
                 showExactAlarmSettingsDialog = true
+            }
+        }
+
+        // USE_FULL_SCREEN_INTENT 재확인 — 허용됐으면 다이얼로그 닫힘
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (notificationManager.canUseFullScreenIntent()) {
+                showFullScreenIntentDialog = false
+            } else if (!showFullScreenIntentDialog) {
+                showFullScreenIntentDialog = true
             }
         }
     }
@@ -142,6 +168,24 @@ fun AlarmDetailRoot(
                 context.startActivity(intent)
             },
             onDismiss = { showNotificationSettingsDialog = false },
+        )
+    }
+
+    // USE_FULL_SCREEN_INTENT — 시스템 설정 안내 다이얼로그 (API 34+)
+    if (showFullScreenIntentDialog) {
+        PermissionSettingsDialog(
+            title = context.getString(R.string.permission_full_screen_intent_title),
+            description = context.getString(R.string.permission_full_screen_intent_description),
+            onGoToSettings = {
+                showFullScreenIntentDialog = false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }
+            },
+            onDismiss = { showFullScreenIntentDialog = false },
         )
     }
 
