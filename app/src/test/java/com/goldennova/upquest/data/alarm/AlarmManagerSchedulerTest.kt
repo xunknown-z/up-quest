@@ -39,9 +39,13 @@ class AlarmManagerSchedulerTest {
         mockPendingIntent = mockk()
 
         // Intent 생성자 및 putExtra 호출 대체
+        // buildPendingIntent에서 alarmId(Long)와 label(String) 두 타입을 extra로 전달하므로 모두 스텁
         mockkConstructor(Intent::class)
         every {
             anyConstructed<Intent>().putExtra(any<String>(), any<Long>())
+        } returns mockk()
+        every {
+            anyConstructed<Intent>().putExtra(any<String>(), any<String>())
         } returns mockk()
 
         // PendingIntent.getBroadcast 정적 메서드 대체
