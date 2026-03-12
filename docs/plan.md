@@ -935,6 +935,14 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
   - `setCategory(Notification.CATEGORY_ALARM)` 설정.
   - `NotificationManagerCompat.notify(alarmId.toInt(), notification)` 발송.
 - `cancelAlarmNotification(alarmId: Long)`: `NotificationManagerCompat.cancel(alarmId.toInt())` 호출.
+- `canUseFullScreenIntent(): Boolean`: Android 14(API 34)+에서 `NotificationManager.canUseFullScreenIntent()` 확인. 미만 버전은 `true` 반환.
+
+### 17-b-1. AlarmDetailRoot — USE_FULL_SCREEN_INTENT 권한 허용 유도 (Android 14+)
+
+`presentation/alarmdetail/AlarmDetailRoot.kt`
+- 알람 저장(`Save` SideEffect 처리) 직전 `NotificationHelper.canUseFullScreenIntent()` 확인.
+  - `false`이면 `PermissionSettingsDialog` 표시 후 `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` Intent로 시스템 설정 이동.
+- `lifecycleState == RESUMED` 복귀 시 권한 재확인하여 이미 허용됐으면 다이얼로그 자동 닫힘.
 
 ### 17-c. UpQuestApplication — NotificationChannel 초기화
 
