@@ -25,7 +25,7 @@ class AlarmManagerScheduler @Inject constructor(
     override fun schedule(alarm: Alarm) {
         if (!alarm.isEnabled) return
         val triggerAtMillis = calculateNextTriggerTime(alarm)
-        val pendingIntent = buildPendingIntent(alarm.id) ?: return
+        val pendingIntent = buildPendingIntent(alarm) ?: return
 
         if (sdkInt >= Build.VERSION_CODES.S &&
             !alarmManager.canScheduleExactAlarms()
@@ -46,16 +46,18 @@ class AlarmManagerScheduler @Inject constructor(
     }
 
     override fun cancel(alarm: Alarm) {
-        buildPendingIntent(alarm.id)?.let { alarmManager.cancel(it) }
+        buildPendingIntent(alarm)?.let { alarmManager.cancel(it) }
     }
 
-    private fun buildPendingIntent(alarmId: Long): PendingIntent? =
+    private fun buildPendingIntent(alarm: Alarm): PendingIntent? =
         PendingIntent.getBroadcast(
             context,
             // alarmId를 requestCode로 사용해 알람별로 고유한 PendingIntent를 생성
-            alarmId.toInt(),
+            alarm.id.toInt(),
             Intent(context, AlarmBroadcastReceiver::class.java).apply {
-                putExtra(AlarmAlertActivity.EXTRA_ALARM_ID, alarmId)
+                putExtra(AlarmAlertActivity.EXTRA_ALARM_ID, alarm.id)
+                // 알림 표시 시 라벨을 사용하기 위해 extra로 전달
+                putExtra(AlarmBroadcastReceiver.EXTRA_ALARM_LABEL, alarm.label)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
