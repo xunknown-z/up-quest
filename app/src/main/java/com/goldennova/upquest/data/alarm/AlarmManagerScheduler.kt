@@ -5,29 +5,26 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import androidx.annotation.RequiresApi
 import com.goldennova.upquest.domain.alarm.AlarmScheduler
 import com.goldennova.upquest.domain.model.Alarm
 import com.goldennova.upquest.presentation.alarmalert.AlarmAlertActivity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDateTime
 import java.time.ZoneId
-import javax.inject.Inject
 
-@RequiresApi(Build.VERSION_CODES.S)
-class AlarmManagerScheduler @Inject constructor(
+class AlarmManagerScheduler(
     @param:ApplicationContext private val context: Context,
     private val alarmManager: AlarmManager,
+    private val sdkVersion: Int,
 ) : AlarmScheduler {
-
-    private val sdkInt: Int = Build.VERSION.SDK_INT
 
     override fun schedule(alarm: Alarm) {
         if (!alarm.isEnabled) return
         val triggerAtMillis = calculateNextTriggerTime(alarm)
         val pendingIntent = buildPendingIntent(alarm) ?: return
 
-        if (sdkInt >= Build.VERSION_CODES.S &&
+        @Suppress("NewApi")
+        if (sdkVersion >= Build.VERSION_CODES.S &&
             !alarmManager.canScheduleExactAlarms()
         ) {
             // SCHEDULE_EXACT_ALARM 권한 미허용 시 — 근사 알람으로 폴백

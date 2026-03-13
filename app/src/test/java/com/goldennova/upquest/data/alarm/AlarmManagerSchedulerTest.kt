@@ -59,7 +59,8 @@ class AlarmManagerSchedulerTest {
         justRun { alarmManager.setAndAllowWhileIdle(any(), any(), any()) }
         justRun { alarmManager.cancel(any<PendingIntent>()) }
 
-        scheduler = AlarmManagerScheduler(context, alarmManager)
+        // JVM 단위 테스트 기본값: sdkVersion=0 → API 31 미만으로 동작 (setExactAndAllowWhileIdle 경로)
+        scheduler = AlarmManagerScheduler(context, alarmManager, sdkVersion = 0)
     }
 
     @AfterEach
@@ -213,6 +214,38 @@ class AlarmManagerSchedulerTest {
                 any(),
             )
         }
+    }
+
+    // endregion
+
+    // endregion
+
+    // region schedule — canScheduleExactAlarms 분기
+
+    @Test
+    fun `canScheduleExactAlarms가 true이면 setExactAndAllowWhileIdle이 호출된다`() {
+        // sdkVersion=31(S)로 생성해 canScheduleExactAlarms 분기가 실행되도록 한다
+        val schedulerApi31 = AlarmManagerScheduler(context, alarmManager, sdkVersion = 31)
+        every { alarmManager.canScheduleExactAlarms() } returns true
+        val alarm = createAlarm(isEnabled = true)
+
+        schedulerApi31.schedule(alarm)
+
+        verify(exactly = 1) { alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, any(), any()) }
+        verify(exactly = 0) { alarmManager.setAndAllowWhileIdle(any(), any(), any()) }
+    }
+
+    @Test
+    fun `canScheduleExactAlarms가 false이면 setAndAllowWhileIdle로 폴백된다`() {
+        // sdkVersion=31(S)로 생성해 canScheduleExactAlarms 분기가 실행되도록 한다
+        val schedulerApi31 = AlarmManagerScheduler(context, alarmManager, sdkVersion = 31)
+        every { alarmManager.canScheduleExactAlarms() } returns false
+        val alarm = createAlarm(isEnabled = true)
+
+        schedulerApi31.schedule(alarm)
+
+        verify(exactly = 0) { alarmManager.setExactAndAllowWhileIdle(any(), any(), any()) }
+        verify(exactly = 1) { alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, any(), any()) }
     }
 
     // endregion
