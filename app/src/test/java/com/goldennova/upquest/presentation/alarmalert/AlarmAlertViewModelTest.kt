@@ -1,14 +1,18 @@
 package com.goldennova.upquest.presentation.alarmalert
 
 import androidx.lifecycle.SavedStateHandle
+import com.goldennova.upquest.domain.alarm.AlarmScheduler
 import com.goldennova.upquest.domain.model.Alarm
 import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.domain.usecase.GetAlarmByIdUseCase
 import com.goldennova.upquest.domain.usecase.PhotoVerificationUseCase
+import com.goldennova.upquest.domain.usecase.ToggleAlarmUseCase
 import com.goldennova.upquest.util.MainDispatcherExtension
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.justRun
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -30,29 +34,41 @@ class AlarmAlertViewModelTest {
 
     private lateinit var getAlarmByIdUseCase: GetAlarmByIdUseCase
     private lateinit var photoVerificationUseCase: PhotoVerificationUseCase
+    private lateinit var alarmScheduler: AlarmScheduler
+    private lateinit var toggleAlarmUseCase: ToggleAlarmUseCase
 
     @BeforeEach
     fun setUp() {
         getAlarmByIdUseCase = mockk()
         photoVerificationUseCase = mockk()
+        alarmScheduler = mockk()
+        toggleAlarmUseCase = mockk()
+
+        // 기본 스텁 — dismiss 경로의 handleAlarmDismiss에서 호출됨
+        justRun { alarmScheduler.schedule(any()) }
+        coEvery { toggleAlarmUseCase(any(), any()) } returns Result.success(Unit)
     }
 
     private fun createViewModel(alarmId: Long = 1L) = AlarmAlertViewModel(
         savedStateHandle = SavedStateHandle(mapOf(AlarmAlertViewModel.KEY_ALARM_ID to alarmId)),
         getAlarmByIdUseCase = getAlarmByIdUseCase,
         photoVerificationUseCase = photoVerificationUseCase,
+        alarmScheduler = alarmScheduler,
+        toggleAlarmUseCase = toggleAlarmUseCase,
     )
 
-    private fun createNormalAlarm(id: Long = 1L) = Alarm(
+    // 반복 알람 (repeatDays 있음)
+    private fun createNormalAlarm(id: Long = 1L, repeatDays: Set<DayOfWeek> = setOf(DayOfWeek.MONDAY)) = Alarm(
         id = id,
         hour = 7,
         minute = 0,
-        repeatDays = setOf(DayOfWeek.MONDAY),
+        repeatDays = repeatDays,
         label = "테스트 알람",
         isEnabled = true,
         dismissMode = DismissMode.Normal,
     )
 
+    // 반복 알람 (repeatDays 있음)
     private fun createPhotoAlarm(id: Long = 1L, referencePath: String = "/storage/ref.jpg") = Alarm(
         id = id,
         hour = 7,
@@ -250,6 +266,149 @@ class AlarmAlertViewModelTest {
             coVerify(exactly = 0) { photoVerificationUseCase.verify(any(), any()) }
             assertTrue(effects.isEmpty())
             job.cancel()
+        }
+
+    // endregion
+
+    // region 반복 알람 재등록
+
+    @Test
+    fun `반복 알람 Normal 해제 시 AlarmScheduler schedule이 재호출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val repeatAlarm = createNormalAlarm(repeatDays = setOf(DayOfWeek.MONDAY))
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(repeatAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.DismissNormal)
+
+            verify(exactly = 1) { alarmScheduler.schedule(repeatAlarm) }
+        }
+
+    @Test
+    fun `비반복 알람 Normal 해제 시 toggleAlarmUseCase가 false로 호출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nonRepeatAlarm = createNormalAlarm(repeatDays = emptySet())
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nonRepeatAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.DismissNormal)
+
+            coVerify(exactly = 1) { toggleAlarmUseCase(nonRepeatAlarm.id, false) }
+        }
+
+    @Test
+    fun `비반복 알람 Normal 해제 시 AlarmScheduler schedule은 호출되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nonRepeatAlarm = createNormalAlarm(repeatDays = emptySet())
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nonRepeatAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.DismissNormal)
+
+            verify(exactly = 0) { alarmScheduler.schedule(any()) }
+        }
+
+    @Test
+    fun `반복 알람 PhotoVerified 인증 성공 시 AlarmScheduler schedule이 재호출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val repeatPhotoAlarm = createPhotoAlarm()
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(repeatPhotoAlarm)
+            coEvery { photoVerificationUseCase.verify(any(), any()) } returns true
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            verify(exactly = 1) { alarmScheduler.schedule(repeatPhotoAlarm) }
+        }
+
+    @Test
+    fun `비반복 알람 PhotoVerified 인증 성공 시 toggleAlarmUseCase가 false로 호출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nonRepeatPhotoAlarm = Alarm(
+                id = 1L,
+                hour = 7,
+                minute = 0,
+                repeatDays = emptySet(),
+                label = "비반복 사진 알람",
+                isEnabled = true,
+                dismissMode = DismissMode.PhotoVerification("/storage/ref.jpg"),
+            )
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nonRepeatPhotoAlarm)
+            coEvery { photoVerificationUseCase.verify(any(), any()) } returns true
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            coVerify(exactly = 1) { toggleAlarmUseCase(nonRepeatPhotoAlarm.id, false) }
+            verify(exactly = 0) { alarmScheduler.schedule(any()) }
+        }
+
+    // endregion
+
+    // region referencePath null 가드
+
+    @Test
+    fun `referencePhotoPath가 null인 PhotoVerification 알람에서 PhotoVerified 이벤트 처리 시 verify가 호출되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nullPathAlarm = Alarm(
+                id = 1L,
+                hour = 7,
+                minute = 0,
+                repeatDays = setOf(DayOfWeek.MONDAY),
+                label = "null 경로 알람",
+                isEnabled = true,
+                dismissMode = DismissMode.PhotoVerification(null),
+            )
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nullPathAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            coVerify(exactly = 0) { photoVerificationUseCase.verify(any(), any()) }
+        }
+
+    @Test
+    fun `referencePhotoPath가 null인 PhotoVerification 알람에서 PhotoVerified 이벤트 처리 시 ShowError SideEffect가 방출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nullPathAlarm = Alarm(
+                id = 1L,
+                hour = 7,
+                minute = 0,
+                repeatDays = setOf(DayOfWeek.MONDAY),
+                label = "null 경로 알람",
+                isEnabled = true,
+                dismissMode = DismissMode.PhotoVerification(null),
+            )
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nullPathAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+            val effects = mutableListOf<AlarmAlertSideEffect>()
+            val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            val effect = effects.firstOrNull() as? AlarmAlertSideEffect.ShowError
+            assertNotNull(effect)
+            job.cancel()
+        }
+
+    @Test
+    fun `referencePhotoPath가 null인 PhotoVerification 알람에서 PhotoVerified 이벤트 처리 시 isDismissed가 변경되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nullPathAlarm = Alarm(
+                id = 1L,
+                hour = 7,
+                minute = 0,
+                repeatDays = setOf(DayOfWeek.MONDAY),
+                label = "null 경로 알람",
+                isEnabled = true,
+                dismissMode = DismissMode.PhotoVerification(null),
+            )
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nullPathAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            assertFalse(viewModel.uiState.value.isDismissed)
         }
 
     // endregion

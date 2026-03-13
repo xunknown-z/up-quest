@@ -48,7 +48,7 @@ private fun formatRepeatDays(days: Set<DayOfWeek>): String =
 /** dismissMode 문자열 + referencePhotoPath → [DismissMode] */
 private fun parseDismissMode(mode: String, photoPath: String?): DismissMode =
     when (mode) {
-        DISMISS_MODE_PHOTO -> DismissMode.PhotoVerification(photoPath ?: "")
+        DISMISS_MODE_PHOTO -> DismissMode.PhotoVerification(photoPath)
         else -> DismissMode.Normal
     }
 

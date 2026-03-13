@@ -236,7 +236,7 @@ private fun DismissModeSection(
                 .fillMaxWidth()
                 .selectable(
                     selected = dismissMode is DismissMode.PhotoVerification,
-                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification("")) },
+                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification(null)) },
                     role = Role.RadioButton,
                 ),
         ) {
