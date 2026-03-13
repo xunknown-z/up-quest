@@ -344,4 +344,72 @@ class AlarmAlertViewModelTest {
         }
 
     // endregion
+
+    // region referencePath null 가드
+
+    @Test
+    fun `referencePhotoPath가 null인 PhotoVerification 알람에서 PhotoVerified 이벤트 처리 시 verify가 호출되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nullPathAlarm = Alarm(
+                id = 1L,
+                hour = 7,
+                minute = 0,
+                repeatDays = setOf(DayOfWeek.MONDAY),
+                label = "null 경로 알람",
+                isEnabled = true,
+                dismissMode = DismissMode.PhotoVerification(null),
+            )
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nullPathAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            coVerify(exactly = 0) { photoVerificationUseCase.verify(any(), any()) }
+        }
+
+    @Test
+    fun `referencePhotoPath가 null인 PhotoVerification 알람에서 PhotoVerified 이벤트 처리 시 ShowError SideEffect가 방출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nullPathAlarm = Alarm(
+                id = 1L,
+                hour = 7,
+                minute = 0,
+                repeatDays = setOf(DayOfWeek.MONDAY),
+                label = "null 경로 알람",
+                isEnabled = true,
+                dismissMode = DismissMode.PhotoVerification(null),
+            )
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nullPathAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+            val effects = mutableListOf<AlarmAlertSideEffect>()
+            val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            val effect = effects.firstOrNull() as? AlarmAlertSideEffect.ShowError
+            assertNotNull(effect)
+            job.cancel()
+        }
+
+    @Test
+    fun `referencePhotoPath가 null인 PhotoVerification 알람에서 PhotoVerified 이벤트 처리 시 isDismissed가 변경되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val nullPathAlarm = Alarm(
+                id = 1L,
+                hour = 7,
+                minute = 0,
+                repeatDays = setOf(DayOfWeek.MONDAY),
+                label = "null 경로 알람",
+                isEnabled = true,
+                dismissMode = DismissMode.PhotoVerification(null),
+            )
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(nullPathAlarm)
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            assertFalse(viewModel.uiState.value.isDismissed)
+        }
+
+    // endregion
 }
