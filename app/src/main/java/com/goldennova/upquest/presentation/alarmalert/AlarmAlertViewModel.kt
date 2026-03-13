@@ -75,8 +75,13 @@ class AlarmAlertViewModel @Inject constructor(
         val alarm = _uiState.value.alarm ?: return
         val mode = alarm.dismissMode as? DismissMode.PhotoVerification ?: return
         viewModelScope.launch {
+            val referencePath = mode.referencePhotoPath
+            if (referencePath == null) {
+                _sideEffect.emit(AlarmAlertSideEffect.ShowError("기준 사진이 설정되어 있지 않습니다."))
+                return@launch
+            }
             val verified =
-                photoVerificationUseCase.verify(capturedImagePath, mode.referencePhotoPath)
+                photoVerificationUseCase.verify(capturedImagePath, referencePath)
             if (verified) {
                 handleAlarmDismiss(alarm)
                 _uiState.update { it.copy(isPhotoVerified = true, isDismissed = true) }
