@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.goldennova.upquest"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -43,12 +43,16 @@ android {
         }
     }
     testOptions {
-        unitTests.all {
-            it.useJUnitPlatform()
+        unitTests {
+            all { it.useJUnitPlatform() }
         }
     }
     buildFeatures {
         compose = true
+    }
+    compileOptions {
+        // java.time API를 API 24 이상에서 사용하기 위한 코어 라이브러리 디슈가링 활성화
+        isCoreLibraryDesugaringEnabled = true
     }
 }
 
@@ -104,8 +108,17 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
+    // Accompanist
+    implementation(libs.accompanist.permissions)
+
     // 테스트
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
+    // ML Kit (prod flavor 전용)
+    "prodImplementation"(libs.mlkit.image.labeling)
 }

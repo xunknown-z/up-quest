@@ -387,44 +387,6 @@ enum class ThemeMode { LIGHT, DARK, SYSTEM }
 
 ---
 
-## Phase 5-5. 권한 관리 인프라
-
-### 5-5-a. PermissionStatus sealed class 정의
-
-`presentation/permission/PermissionStatus.kt`
-```kotlin
-sealed interface PermissionStatus {
-    data object Granted : PermissionStatus
-    data object Denied : PermissionStatus           // 거부 (재요청 가능)
-    data object PermanentlyDenied : PermissionStatus // 영구 거부 ("다시 묻지 않음" 선택)
-}
-```
-
-### 5-5-b. PermissionRationaleDialog 공용 컴포저블 작성
-
-`presentation/components/PermissionRationaleDialog.kt`
-- 권한이 필요한 이유를 설명하는 다이얼로그.
-- "허용" 버튼 → 권한 재요청 람다 호출.
-- "취소" 버튼 → 다이얼로그 닫기.
-- 파라미터: `title`, `description`, `onConfirm`, `onDismiss`.
-
-### 5-5-c. PermissionSettingsDialog 공용 컴포저블 작성
-
-`presentation/components/PermissionSettingsDialog.kt`
-- 영구 거부 시 앱 설정으로 유도하는 다이얼로그.
-- "설정으로 이동" 버튼 → `Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)` 실행.
-- "취소" 버튼 → 다이얼로그 닫기 및 해당 기능 비활성화 안내.
-- 파라미터: `title`, `description`, `onGoToSettings`, `onDismiss`.
-
-### 5-5-d. PermissionDialog UI 테스트
-
-`androidTest/.../components/PermissionRationaleDialogTest.kt`
-`androidTest/.../components/PermissionSettingsDialogTest.kt`
-- 각 버튼 클릭 시 람다 호출 검증.
-- 텍스트 렌더링 검증.
-
----
-
 ## Phase 6. 알람 리스트 화면
 
 ### 6-a. UiState / Event / SideEffect 정의
@@ -941,5 +903,312 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
 ### 16-c. 릴리즈 Lint 검사 통과
 
 ```bash
+./gradlew lintProdRelease
+```
+
+## 추가 필요한 기능들
+
+---
+
+## Phase 17. 알림(Notification) 연동
+
+> **최우선 과제**: Android 10+ 백그라운드 Activity 실행 제한으로 인해 알람 발생 시 `AlarmAlertActivity`가 직접 실행되지 않음.
+> `setFullScreenIntent()` 포함 고우선순위 Notification으로 대체해야 앱이 닫혀 있어도 알람 화면이 표시됨.
+
+### 17-a. AndroidManifest.xml — USE_FULL_SCREEN_INTENT 권한 추가
+
+```xml
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+```
+
+- Android 14(API 34)+에서는 `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` Intent로 사용자 허용 유도 필요.
+
+### 17-b. NotificationHelper 구현
+
+`data/alarm/NotificationHelper.kt`
+- `@Singleton` + `@Inject constructor(@ApplicationContext context: Context)`.
+- `createChannel()`: `NotificationChannel` (id: `"alarm_channel"`, importance: `IMPORTANCE_HIGH`, enableVibration: false) 생성.
+- `showAlarmNotification(alarmId: Long, label: String)`:
+  - `AlarmAlertActivity`로 이동하는 `PendingIntent` 생성 (`FLAG_IMMUTABLE or FLAG_UPDATE_CURRENT`).
+  - `setFullScreenIntent(pendingIntent, true)` 설정 — 잠금/백그라운드 상태에서도 `AlarmAlertActivity` 실행.
+  - `setOngoing(true)` — 스와이프 삭제 방지.
+  - `setCategory(Notification.CATEGORY_ALARM)` 설정.
+  - `NotificationManagerCompat.notify(alarmId.toInt(), notification)` 발송.
+- `cancelAlarmNotification(alarmId: Long)`: `NotificationManagerCompat.cancel(alarmId.toInt())` 호출.
+- `canUseFullScreenIntent(): Boolean`: Android 14(API 34)+에서 `NotificationManager.canUseFullScreenIntent()` 확인. 미만 버전은 `true` 반환.
+
+### 17-b-1. AlarmDetailRoot — USE_FULL_SCREEN_INTENT 권한 허용 유도 (Android 14+)
+
+`presentation/alarmdetail/AlarmDetailRoot.kt`
+- 알람 저장(`Save` SideEffect 처리) 직전 `NotificationHelper.canUseFullScreenIntent()` 확인.
+  - `false`이면 `PermissionSettingsDialog` 표시 후 `Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` Intent로 시스템 설정 이동.
+- `lifecycleState == RESUMED` 복귀 시 권한 재확인하여 이미 허용됐으면 다이얼로그 자동 닫힘.
+
+### 17-c. UpQuestApplication — NotificationChannel 초기화
+
+`UpQuestApplication.kt`
+- `NotificationHelper` Hilt 필드 주입.
+- `onCreate()` 에서 `notificationHelper.createChannel()` 호출.
+
+### 17-d. AlarmBroadcastReceiver — startActivity 제거 및 Notification 발송으로 교체
+
+`data/alarm/AlarmBroadcastReceiver.kt`
+- `NotificationHelper` 필드 주입.
+- `onReceive()` 에서 기존 `context.startActivity()` 직접 호출 **제거**.
+- `notificationHelper.showAlarmNotification(alarmId, label)` 호출로 대체.
+  - Intent extra에서 `alarmId`와 함께 `label`도 전달받도록 `AlarmManagerScheduler` PendingIntent extra 추가.
+- `alarmSoundPlayer.play(null)` 호출은 유지.
+
+### 17-e. AlarmAlertActivity — Notification 취소
+
+`presentation/alarmalert/AlarmAlertActivity.kt`
+- `NotificationHelper` 필드 주입.
+- `onDestroy()` 에서 `notificationHelper.cancelAlarmNotification(alarmId)` 호출.
+- `alarmId`는 `intent.getLongExtra(EXTRA_ALARM_ID, -1L)` 로 읽음.
+
+### 17-f. AlarmManagerScheduler — label extra 추가
+
+`data/alarm/AlarmManagerScheduler.kt`
+- `PendingIntent` 생성 시 `alarmId` 외에 `alarm.label` 도 extra로 포함.
+  - key: `AlarmAlertActivity.EXTRA_ALARM_ID`, `"extra_alarm_label"`.
+
+### 17-g. NotificationHelper 단위 테스트
+
+`test/.../data/alarm/NotificationHelperTest.kt`
+- `NotificationManagerCompat`을 MockK로 mock 처리.
+- `showAlarmNotification()` 호출 시 `notify()` 호출 및 alarmId 파라미터 검증.
+- `cancelAlarmNotification()` 호출 시 `cancel(alarmId.toInt())` 호출 검증.
+
+---
+
+## Phase 18. 치명적 버그 수정
+
+### 18-a. 반복 알람 재등록 — AlarmAlertViewModel 수정
+
+**문제**: 반복 요일이 설정된 알람이 1회 울린 뒤 다음 회차를 재등록하는 로직이 없어, 반복 알람이 한 번 울리고 영구적으로 꺼짐.
+
+`presentation/alarmalert/AlarmAlertViewModel.kt`
+- 생성자에 `AlarmScheduler` 주입 추가.
+- `dismissNormal()` 및 `onPhotoVerified()` 성공 경로에서 알람 해제 직전 반복 재등록 처리.
+  - `alarm.repeatDays.isNotEmpty()` 이면 `AlarmScheduler.schedule(alarm)` 재호출.
+  - 반복 없는 알람(`repeatDays.isEmpty()`)은 비활성화(`AlarmRepository.toggleAlarm(id, false)`) 후 종료.
+
+### 18-b. 반복 알람 재등록 — AlarmAlertViewModel 단위 테스트 업데이트
+
+`test/.../alarmalert/AlarmAlertViewModelTest.kt`
+- `AlarmScheduler`를 MockK로 mock 처리.
+- 반복 알람 해제 시 `AlarmScheduler.schedule()` 재호출 검증.
+- 비반복 알람 해제 시 `AlarmRepository.toggleAlarm(false)` 호출 및 `schedule()` 미호출 검증.
+
+### 18-c. referencePath null 가드 — AlarmAlertViewModel 수정
+
+**문제**: 사진 등록 없이 PhotoVerification 모드로 저장된 알람이 울리면 `referencePath = null`인 채로 `verify()` 가 호출되어 런타임 크래시 위험.
+
+`presentation/alarmalert/AlarmAlertViewModel.kt`
+- `onPhotoVerified()` 내부에서 `mode.referencePhotoPath`가 null이면 `verify()` 호출 없이 `ShowError` SideEffect를 방출하고 조기 반환.
+- 오류 메시지 strings.xml에 `alarm_alert_no_reference_photo` 키로 추가.
+
+`PhotoVerificationUseCase` 인터페이스 시그니처 재검토:
+- `suspend fun verify(capturedPath: String, referencePath: String): Boolean` — `referencePath`를 `String`(non-null)으로 유지.
+- 호출부에서 null 가드를 완전히 처리하여 UseCase 레이어에 null이 도달하지 않도록 보장.
+
+### 18-d. referencePath null 가드 — 단위 테스트 추가
+
+`test/.../alarmalert/AlarmAlertViewModelTest.kt`
+- `referencePhotoPath = null`인 PhotoVerification 알람으로 `PhotoVerified` 이벤트 전달 시 `verify()` 미호출 및 `ShowError` SideEffect 방출 검증.
+
+### 18-e. USE_EXACT_ALARM 권한 정리
+
+**문제**: `USE_EXACT_ALARM`은 Android 13+에서 시스템이 허가한 알람/시계 앱에만 부여됨. 일반 앱이 선언하면 Google Play 심사에서 배포 차단될 수 있음.
+
+`AndroidManifest.xml`
+- `USE_EXACT_ALARM` 권한 제거.
+- `SCHEDULE_EXACT_ALARM` 단독 유지 (`maxSdkVersion` 미지정, API 31+ 대응).
+
+`data/alarm/AlarmManagerScheduler.kt`
+- `schedule()` 내부에서 `AlarmManager.canScheduleExactAlarms()` (API 31+) 체크.
+  - 허용: `setExactAndAllowWhileIdle()` 사용 (기존 동작 유지).
+  - 미허용: `setAndAllowWhileIdle()` 로 폴백 — 이미 `AlarmManagerSchedulerTest`에 스텁 존재하므로 로직만 추가.
+
+`presentation/alarmdetail/AlarmDetailRoot.kt`
+- 알람 저장 시 `canScheduleExactAlarms()` 확인 후 미허용이면 `PermissionSettingsDialog` 표시.
+- `Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM` Intent로 시스템 설정 화면 이동.
+- `lifecycleState == RESUMED` 복귀 시 권한 재확인 및 UiState 갱신.
+
+### 18-f. AlarmManagerScheduler 단위 테스트 업데이트
+
+`test/.../data/alarm/AlarmManagerSchedulerTest.kt`
+- `canScheduleExactAlarms() = true` → `setExactAndAllowWhileIdle()` 호출 검증 (기존 테스트 유지).
+- `canScheduleExactAlarms() = false` → `setAndAllowWhileIdle()` 폴백 호출 검증 (신규).
+
+---
+
+## Phase 19. 진동 기능
+
+### 19-a. VibrationPlayer 인터페이스 정의
+
+`domain/alarm/VibrationPlayer.kt`
+```kotlin
+interface VibrationPlayer {
+    fun vibrate()
+    fun cancel()
+}
+```
+
+### 19-b. SystemVibrationPlayer 구현 (공통 소스셋)
+
+`data/alarm/SystemVibrationPlayer.kt`
+- `Vibrator` (API < 31) / `VibratorManager` (API 31+) 분기 처리.
+- 패턴: 0ms 대기 → 500ms 진동 → 500ms 정지 반복 (`VibrationEffect.createWaveform()`).
+- `@Singleton` + `@Inject constructor(@ApplicationContext context: Context)`.
+
+### 19-c. Hilt 모듈 — VibrationPlayer 바인딩
+
+`di/SchedulerModule.kt` (공통 소스셋, 기존 파일에 추가)
+- `VibrationPlayer → SystemVibrationPlayer` `@Binds @Singleton` 바인딩 추가.
+
+### 19-d. AlarmBroadcastReceiver에 VibrationPlayer 연동
+
+`data/alarm/AlarmBroadcastReceiver.kt`
+- `VibrationPlayer` 필드 주입 추가.
+- `onReceive()` 에서 `alarmSoundPlayer.play()` 와 함께 `vibrationPlayer.vibrate()` 호출.
+
+### 19-e. AlarmAlertActivity에 VibrationPlayer 연동
+
+`presentation/alarmalert/AlarmAlertActivity.kt`
+- `VibrationPlayer` 필드 주입 추가.
+- `onDestroy()` 에서 `alarmSoundPlayer.stop()` 과 함께 `vibrationPlayer.cancel()` 호출.
+
+### 19-f. SystemVibrationPlayer 단위 테스트
+
+`test/.../data/alarm/SystemVibrationPlayerTest.kt`
+- `Vibrator` / `VibratorManager`를 MockK로 mock 처리.
+- `vibrate()` 호출 시 `VibrationEffect.createWaveform()` 파라미터 검증.
+- `cancel()` 호출 시 `vibrator.cancel()` 호출 검증.
+
+---
+
+## Phase 20. 알람음 선택 기능
+
+### 20-a. Alarm 도메인 모델에 ringtoneUri 필드 추가
+
+`domain/model/Alarm.kt`
+- `val ringtoneUri: String? = null` 필드 추가. (`null` = 시스템 기본 알람음)
+
+### 20-b. AlarmEntity에 ringtoneUri 컬럼 추가 및 DB 마이그레이션
+
+`data/local/entity/AlarmEntity.kt`
+- `val ringtoneUri: String? = null` 컬럼 추가.
+
+`data/local/AppDatabase.kt`
+- `version = 2`로 변경.
+- `MIGRATION_1_2` 정의: `ALTER TABLE alarms ADD COLUMN ringtoneUri TEXT`.
+- `addMigrations(MIGRATION_1_2)` 등록.
+
+### 20-c. AlarmEntityMapper 업데이트
+
+`data/local/mapper/AlarmEntityMapper.kt`
+- `ringtoneUri` 필드 양방향 매핑 추가.
+
+### 20-d. AlarmEntityMapper 단위 테스트 업데이트
+
+`test/.../data/local/mapper/AlarmEntityMapperTest.kt`
+- `ringtoneUri` null / non-null 각 경우 양방향 변환 검증 추가.
+
+### 20-e. UiState / Event 업데이트 — AlarmDetailContract
+
+`presentation/alarmdetail/AlarmDetailUiState.kt`
+- `ringtoneUri: String?` 필드 추가.
+
+`presentation/alarmdetail/AlarmDetailEvent.kt`
+- `data class ChangeRingtone(val uri: String?) : AlarmDetailEvent` 추가.
+
+### 20-f. AlarmDetailViewModel 업데이트
+
+`presentation/alarmdetail/AlarmDetailViewModel.kt`
+- `ChangeRingtone` 이벤트 처리 — UiState `ringtoneUri` 업데이트.
+- 기존 알람 로드 시 `ringtoneUri` 복원.
+- `Save` 이벤트 처리 시 `ringtoneUri` 포함하여 `SaveAlarmUseCase` 호출.
+
+### 20-g. AlarmDetailScreen — 알람음 선택 UI 추가
+
+`presentation/alarmdetail/AlarmDetailScreen.kt`
+- 알람음 선택 행(Row) 추가: 현재 선택된 알람음 이름 표시 + 변경 버튼.
+- 버튼 클릭 시 Android 기본 링톤 선택 Intent(`RingtoneManager.ACTION_RINGTONE_PICKER`) 실행을 위한 `onPickRingtone: () -> Unit` 람다 파라미터 추가.
+- `null`인 경우 "기본 알람음" 문자열 표시 (strings.xml에 `ringtone_default` 키 추가).
+
+### 20-h. AlarmDetailRoot — 링톤 선택 결과 처리
+
+`presentation/alarmdetail/AlarmDetailRoot.kt`
+- `rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult())` 등록.
+- 결과에서 `RingtoneManager.EXTRA_RINGTONE_PICKED_URI` 추출 후 `ChangeRingtone` 이벤트 발송.
+
+### 20-i. RingtoneAlarmSoundPlayer — 선택된 URI 반영
+
+`data/alarm/RingtoneAlarmSoundPlayer.kt`
+- 현재 `play(uri = null)` 고정 호출 → 알람의 `ringtoneUri`를 `Uri.parse()`로 변환 후 전달.
+
+`data/alarm/AlarmBroadcastReceiver.kt`
+- Intent extra로 `ringtoneUri`를 함께 전달받아 `alarmSoundPlayer.play(uri)` 에 적용.
+- `AlarmManagerScheduler`에서 `PendingIntent` 생성 시 `ringtoneUri` extra 포함.
+
+### 20-j. AlarmDetailViewModel 단위 테스트 업데이트
+
+`test/.../alarmdetail/AlarmDetailViewModelTest.kt`
+- `ChangeRingtone` 이벤트 처리 후 UiState `ringtoneUri` 변화 검증.
+- Save 시 `ringtoneUri`가 `SaveAlarmUseCase` 파라미터에 포함되는지 검증.
+
+---
+
+## Phase 21. 안정성 보강
+
+### 21-a. 사진 파일 관리 — 알람 삭제 시 참조 사진 삭제
+
+`domain/usecase/DeleteAlarmUseCase.kt`
+- 삭제 전 `GetAlarmByIdUseCase`로 알람 조회.
+- `dismissMode`가 `PhotoVerification`이고 `referencePhotoPath`가 non-null이면 `File(path).delete()` 호출.
+
+`test/.../domain/usecase/DeleteAlarmUseCaseTest.kt`
+- PhotoVerification 알람 삭제 시 참조 파일 삭제 호출 검증.
+- Normal 알람 삭제 시 파일 삭제 미호출 검증.
+
+### 21-b. 알람 울림 화면 — referencePath 미등록 안내 UI
+
+`presentation/alarmalert/AlarmAlertScreen.kt`
+- PhotoVerification 모드이지만 `referencePhotoPath == null`인 경우:
+  - 카메라 프리뷰 대신 경고 메시지 표시 ("기준 사진이 등록되지 않았습니다. 일반 해제 버튼을 사용하세요.").
+  - 일반 해제 버튼 노출.
+- strings.xml에 `alarm_alert_no_reference_photo_message` 키 추가.
+
+`presentation/alarmalert/AlarmAlertUiState.kt`
+- `val hasReferencePhoto: Boolean` 계산 프로퍼티 또는 파생 필드 추가.
+
+### 21-c. 도즈 모드(Doze Mode) 대응 — 알람 신뢰성 향상
+
+`data/alarm/AlarmManagerScheduler.kt`
+- 반복 알람의 경우 알람 해제 후 다음 회차 재등록 시 `setExactAndAllowWhileIdle()` 사용 확인 (기존 로직 점검).
+- 배터리 최적화 예외 설정 안내: `AlarmDetailRoot`에서 알람 저장 시 `PowerManager.isIgnoringBatteryOptimizations()` 확인 후 미설정이면 `Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` Intent 안내 다이얼로그 표시.
+
+### 21-d. FakeAlarmRepository — 반복 알람 재등록 시나리오 대응
+
+`data/repository/FakeAlarmRepository.kt` (dev 소스셋)
+- `toggleAlarm()` 메서드가 반복 알람에 대해서도 정상 동작하는지 확인 및 보완.
+- dev 빌드에서 AlarmAlertViewModel 재등록 로직 검증 가능하도록 FakeAlarmScheduler 제공.
+
+`app/src/dev/java/.../di/` — FakeAlarmScheduler 바인딩 확인.
+
+### 21-e. 전체 회귀 테스트
+
+```bash
+# dev flavor 전체 단위 테스트
+./gradlew testDevDebugUnitTest
+
+# prod flavor 전체 단위 테스트
+./gradlew testProdDebugUnitTest
+
+# prod release 빌드 최종 확인
+./gradlew assembleProdRelease
+
+# prod release lint 최종 확인
 ./gradlew lintProdRelease
 ```
