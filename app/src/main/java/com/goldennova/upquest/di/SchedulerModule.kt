@@ -7,7 +7,6 @@ import com.goldennova.upquest.data.alarm.AlarmManagerScheduler
 import com.goldennova.upquest.data.alarm.SystemVibrationPlayer
 import com.goldennova.upquest.domain.alarm.AlarmScheduler
 import com.goldennova.upquest.domain.alarm.VibrationPlayer
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,18 +16,18 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class SchedulerModule {
+object SchedulerModule {
 
-    @Binds
+    @Provides
     @Singleton
-    abstract fun bindVibrationPlayer(impl: SystemVibrationPlayer): VibrationPlayer
+    fun provideAlarmScheduler(
+        @ApplicationContext context: Context,
+        alarmManager: AlarmManager,
+    ): AlarmScheduler = AlarmManagerScheduler(context, alarmManager, Build.VERSION.SDK_INT)
 
-    companion object {
-        @Provides
-        @Singleton
-        fun provideAlarmScheduler(
-            @ApplicationContext context: Context,
-            alarmManager: AlarmManager,
-        ): AlarmScheduler = AlarmManagerScheduler(context, alarmManager, Build.VERSION.SDK_INT)
-    }
+    @Provides
+    @Singleton
+    fun provideVibrationPlayer(
+        @ApplicationContext context: Context,
+    ): VibrationPlayer = SystemVibrationPlayer(context, Build.VERSION.SDK_INT)
 }
