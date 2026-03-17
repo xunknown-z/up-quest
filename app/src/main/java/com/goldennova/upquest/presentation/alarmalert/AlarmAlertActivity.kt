@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import com.goldennova.upquest.data.alarm.NotificationHelper
 import com.goldennova.upquest.domain.alarm.AlarmSoundPlayer
+import com.goldennova.upquest.domain.alarm.VibrationPlayer
 import com.goldennova.upquest.presentation.theme.UpQuestTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -31,6 +32,9 @@ class AlarmAlertActivity : ComponentActivity() {
 
     @Inject
     lateinit var alarmSoundPlayer: AlarmSoundPlayer
+
+    @Inject
+    lateinit var vibrationPlayer: VibrationPlayer
 
     @Inject
     lateinit var notificationHelper: NotificationHelper
@@ -63,8 +67,9 @@ class AlarmAlertActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
-        // Activity 종료(알람 해제 또는 강제 종료) 시 알람음 중지 및 알림 취소
+        // Activity 종료(알람 해제 또는 강제 종료) 시 알람음·진동 중지 및 알림 취소
         alarmSoundPlayer.stop()
+        vibrationPlayer.cancel()
         if (alarmId != -1L) notificationHelper.cancelAlarmNotification(alarmId)
     }
 

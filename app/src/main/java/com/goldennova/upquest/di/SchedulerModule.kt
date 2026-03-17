@@ -4,7 +4,9 @@ import android.app.AlarmManager
 import android.content.Context
 import android.os.Build
 import com.goldennova.upquest.data.alarm.AlarmManagerScheduler
+import com.goldennova.upquest.data.alarm.SystemVibrationPlayer
 import com.goldennova.upquest.domain.alarm.AlarmScheduler
+import com.goldennova.upquest.domain.alarm.VibrationPlayer
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,4 +24,10 @@ object SchedulerModule {
         @ApplicationContext context: Context,
         alarmManager: AlarmManager,
     ): AlarmScheduler = AlarmManagerScheduler(context, alarmManager, Build.VERSION.SDK_INT)
+
+    @Provides
+    @Singleton
+    fun provideVibrationPlayer(
+        @ApplicationContext context: Context,
+    ): VibrationPlayer = SystemVibrationPlayer(context, Build.VERSION.SDK_INT)
 }
