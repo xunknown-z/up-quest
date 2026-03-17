@@ -6,7 +6,7 @@
     <string name="dismiss_photo">Dismiss with Photo</string>
     <string name="alarm_detail_title_new">New Alarm</string>
     <string name="alarm_detail_title_edit">Edit Alarm</string>
-    <string name="alarm_label_hint">Label</string>
+    <string name="alarm_label_hint">Alarm</string>
     <string name="alarm_save">Save</string>
     <string name="alarm_delete">Delete</string>
     <string name="repeat_days_label">Repeat</string>

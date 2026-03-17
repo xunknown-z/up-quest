@@ -230,25 +230,26 @@ private fun DismissModeSection(
                 modifier = Modifier.padding(start = 4.dp),
             )
         }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = dismissMode is DismissMode.PhotoVerification,
-                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification(null)) },
-                    role = Role.RadioButton,
-                ),
-        ) {
-            RadioButton(
-                selected = dismissMode is DismissMode.PhotoVerification,
-                onClick = null,
-            )
-            Text(
-                text = stringResource(R.string.dismiss_photo),
-                modifier = Modifier.padding(start = 4.dp),
-            )
-        }
+        // TODO 사진 기능 완성되면 추가
+//        Row(
+//            verticalAlignment = Alignment.CenterVertically,
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .selectable(
+//                    selected = dismissMode is DismissMode.PhotoVerification,
+//                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification(null)) },
+//                    role = Role.RadioButton,
+//                ),
+//        ) {
+//            RadioButton(
+//                selected = dismissMode is DismissMode.PhotoVerification,
+//                onClick = null,
+//            )
+//            Text(
+//                text = stringResource(R.string.dismiss_photo),
+//                modifier = Modifier.padding(start = 4.dp),
+//            )
+//        }
         if (dismissMode is DismissMode.PhotoVerification) {
             Button(
                 onClick = onNavigateToPhotoSetup,
