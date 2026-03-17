@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.goldennova.upquest.domain.alarm.AlarmSoundPlayer
+import com.goldennova.upquest.domain.alarm.VibrationPlayer
 import com.goldennova.upquest.presentation.alarmalert.AlarmAlertActivity
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -21,6 +22,9 @@ class AlarmBroadcastReceiver : BroadcastReceiver() {
     lateinit var alarmSoundPlayer: AlarmSoundPlayer
 
     @Inject
+    lateinit var vibrationPlayer: VibrationPlayer
+
+    @Inject
     lateinit var notificationHelper: NotificationHelper
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -29,8 +33,9 @@ class AlarmBroadcastReceiver : BroadcastReceiver() {
 
         val label = intent.getStringExtra(EXTRA_ALARM_LABEL).orEmpty()
 
-        // 알람음 재생 시작 (기본 알람음 사용)
+        // 알람음 및 진동 재생 시작
         alarmSoundPlayer.play(uri = null)
+        vibrationPlayer.vibrate()
 
         // setFullScreenIntent를 통해 잠금/백그라운드 상태에서도 AlarmAlertActivity를 표시한다
         notificationHelper.showAlarmNotification(alarmId, label)
