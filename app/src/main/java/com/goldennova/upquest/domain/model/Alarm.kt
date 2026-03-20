@@ -10,4 +10,5 @@ data class Alarm(
     val label: String,
     val isEnabled: Boolean,
     val dismissMode: DismissMode,
+    val ringtoneUri: String? = null, // null = 시스템 기본 알람음
 )
