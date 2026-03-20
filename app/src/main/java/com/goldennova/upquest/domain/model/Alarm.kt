@@ -11,4 +11,5 @@ data class Alarm(
     val isEnabled: Boolean,
     val dismissMode: DismissMode,
     val ringtoneUri: String? = null, // null = 시스템 기본 알람음
+    val soundMode: AlarmSoundMode = AlarmSoundMode.SOUND_AND_VIBRATION,
 )

@@ -37,6 +37,9 @@
     <string name="permission_full_screen_intent_title">전체 화면 알림 권한 필요</string>
     <string name="permission_full_screen_intent_description">잠금 화면에서 알람을 표시하려면 설정에서 전체 화면 알림을 허용해 주세요.</string>
     <string name="alarm_alert_no_reference_photo">기준 사진이 설정되어 있지 않습니다. 알람을 다시 설정해 주세요.</string>
+    <string name="sound_mode_label">소리 모드</string>
+    <string name="sound_mode_sound_and_vibration">소리 + 진동</string>
+    <string name="sound_mode_vibration_only">진동만</string>
     <string name="ringtone_label">알람음</string>
     <string name="ringtone_default">기본 알람음</string>
     <string name="ringtone_change">변경</string>

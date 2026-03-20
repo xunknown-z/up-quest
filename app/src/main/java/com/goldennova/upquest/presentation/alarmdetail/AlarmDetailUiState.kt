@@ -1,5 +1,6 @@
 package com.goldennova.upquest.presentation.alarmdetail
 
+import com.goldennova.upquest.domain.model.AlarmSoundMode
 import com.goldennova.upquest.domain.model.DismissMode
 import java.time.DayOfWeek
 
@@ -10,5 +11,6 @@ data class AlarmDetailUiState(
     val label: String = "",
     val dismissMode: DismissMode = DismissMode.Normal,
     val ringtoneUri: String? = null, // null = 시스템 기본 알람음
+    val soundMode: AlarmSoundMode = AlarmSoundMode.SOUND_AND_VIBRATION,
     val isLoading: Boolean = false,
 )
