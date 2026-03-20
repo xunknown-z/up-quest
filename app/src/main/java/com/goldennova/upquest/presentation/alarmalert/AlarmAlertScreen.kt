@@ -45,6 +45,8 @@ fun AlarmAlertScreen(
 ) {
     val alarm = uiState.alarm
     val isPhotoMode = alarm?.dismissMode is DismissMode.PhotoVerification
+    // PhotoVerification 모드이지만 참조 사진이 미등록된 경우
+    val isPhotoModeWithoutReference = isPhotoMode && !uiState.hasReferencePhoto
 
     // CameraX 바인딩 완료 후 전달받은 촬영 트리거 함수
     var captureAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -58,8 +60,8 @@ fun AlarmAlertScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            // PhotoVerification 모드: 전체 배경을 카메라 프리뷰로 채운다
-            if (isPhotoMode) {
+            // PhotoVerification 모드이고 참조 사진이 등록된 경우에만 카메라 프리뷰 표시
+            if (isPhotoMode && uiState.hasReferencePhoto) {
                 CameraPreview(
                     onPhotoTaken = { path -> onEvent(AlarmAlertEvent.PhotoVerified(path)) },
                     onCaptureFunctionReady = { captureAction = it },
@@ -82,10 +84,21 @@ fun AlarmAlertScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
+                // 참조 사진 미등록 경고 메시지
+                if (isPhotoModeWithoutReference) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.alarm_alert_no_reference_photo_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+
                 Spacer(modifier = Modifier.weight(1f))
 
                 // 해제 방식에 따른 액션 버튼
-                if (isPhotoMode) {
+                // 참조 사진 미등록 시에는 일반 해제 버튼 표시
+                if (isPhotoMode && uiState.hasReferencePhoto) {
                     Button(
                         onClick = { captureAction?.invoke() },
                         modifier = Modifier.fillMaxWidth(),
