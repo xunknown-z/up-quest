@@ -213,4 +213,88 @@ class AlarmEntityMapperTest {
     }
 
     // endregion
+
+    // region ringtoneUri 매핑 검증
+
+    /** toDomain: ringtoneUri가 null인 Entity → 도메인 모델 변환 시 null 유지 검증. */
+    @Test
+    fun `toDomain - ringtoneUri가 null이면 도메인 모델의 ringtoneUri도 null이다`() {
+        val entity = AlarmEntity(
+            id = 1L,
+            hour = 7,
+            minute = 0,
+            repeatDays = "",
+            label = "",
+            isEnabled = true,
+            dismissMode = "NORMAL",
+            referencePhotoPath = null,
+            ringtoneUri = null,
+        )
+
+        val domain = entity.toDomain()
+
+        assertNull(domain.ringtoneUri)
+    }
+
+    /** toDomain: ringtoneUri가 non-null인 Entity → 도메인 모델 변환 시 값 유지 검증. */
+    @Test
+    fun `toDomain - ringtoneUri가 non-null이면 도메인 모델의 ringtoneUri에 값이 복원된다`() {
+        val uri = "content://media/internal/audio/media/12"
+        val entity = AlarmEntity(
+            id = 2L,
+            hour = 8,
+            minute = 0,
+            repeatDays = "",
+            label = "",
+            isEnabled = true,
+            dismissMode = "NORMAL",
+            referencePhotoPath = null,
+            ringtoneUri = uri,
+        )
+
+        val domain = entity.toDomain()
+
+        assertEquals(uri, domain.ringtoneUri)
+    }
+
+    /** toEntity: ringtoneUri가 null인 도메인 모델 → Entity 변환 시 null 유지 검증. */
+    @Test
+    fun `toEntity - ringtoneUri가 null이면 Entity의 ringtoneUri도 null이다`() {
+        val domain = Alarm(
+            id = 1L,
+            hour = 7,
+            minute = 0,
+            repeatDays = emptySet(),
+            label = "",
+            isEnabled = true,
+            dismissMode = DismissMode.Normal,
+            ringtoneUri = null,
+        )
+
+        val entity = domain.toEntity()
+
+        assertNull(entity.ringtoneUri)
+    }
+
+    /** toEntity: ringtoneUri가 non-null인 도메인 모델 → Entity 변환 시 값 유지 검증. */
+    @Test
+    fun `toEntity - ringtoneUri가 non-null이면 Entity의 ringtoneUri에 값이 저장된다`() {
+        val uri = "content://media/internal/audio/media/12"
+        val domain = Alarm(
+            id = 2L,
+            hour = 8,
+            minute = 0,
+            repeatDays = emptySet(),
+            label = "",
+            isEnabled = true,
+            dismissMode = DismissMode.Normal,
+            ringtoneUri = uri,
+        )
+
+        val entity = domain.toEntity()
+
+        assertEquals(uri, entity.ringtoneUri)
+    }
+
+    // endregion
 }
