@@ -46,4 +46,5 @@
     <string name="ringtone_label">알람음</string>
     <string name="ringtone_default">기본 알람음</string>
     <string name="ringtone_change">변경</string>
+    <string name="photo_reference_change">사진 변경</string>
 </resources>
