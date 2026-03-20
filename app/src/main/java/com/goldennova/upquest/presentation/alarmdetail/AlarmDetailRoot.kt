@@ -213,6 +213,7 @@ fun AlarmDetailRoot(
         isNewAlarm = alarmId == -1L,
         onNavigateBack = onNavigateBack,
         onNavigateToPhotoSetup = { onNavigateToPhotoSetup(alarmId) },
+        onPickRingtone = {}, // 20-h에서 링톤 선택 런처로 교체
         snackbarHostState = snackbarHostState,
     )
 }

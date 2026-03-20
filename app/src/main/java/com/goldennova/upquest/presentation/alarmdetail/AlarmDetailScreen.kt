@@ -56,6 +56,7 @@ fun AlarmDetailScreen(
     isNewAlarm: Boolean,
     onNavigateBack: () -> Unit,
     onNavigateToPhotoSetup: () -> Unit,
+    onPickRingtone: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     modifier: Modifier = Modifier,
 ) {
@@ -102,6 +103,7 @@ fun AlarmDetailScreen(
                 uiState = uiState,
                 onEvent = onEvent,
                 onNavigateToPhotoSetup = onNavigateToPhotoSetup,
+                onPickRingtone = onPickRingtone,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -114,6 +116,7 @@ private fun AlarmDetailForm(
     uiState: AlarmDetailUiState,
     onEvent: (AlarmDetailEvent) -> Unit,
     onNavigateToPhotoSetup: () -> Unit,
+    onPickRingtone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val timePickerState = rememberTimePickerState(
@@ -156,6 +159,11 @@ private fun AlarmDetailForm(
             dismissMode = uiState.dismissMode,
             onChangeDismissMode = { onEvent(AlarmDetailEvent.ChangeDismissMode(it)) },
             onNavigateToPhotoSetup = onNavigateToPhotoSetup,
+        )
+
+        RingtoneRow(
+            ringtoneUri = uiState.ringtoneUri,
+            onPickRingtone = onPickRingtone,
         )
     }
 }
@@ -264,6 +272,35 @@ private fun DismissModeSection(
 }
 
 @Composable
+private fun RingtoneRow(
+    ringtoneUri: String?,
+    onPickRingtone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.ringtone_label),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                // URI가 null이면 "기본 알람음" 표시
+                text = ringtoneUri ?: stringResource(R.string.ringtone_default),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedButton(onClick = onPickRingtone) {
+            Text(text = stringResource(R.string.ringtone_change))
+        }
+    }
+}
+
+@Composable
 private fun AlarmDetailBottomBar(
     isNewAlarm: Boolean,
     isLoading: Boolean,
@@ -312,6 +349,7 @@ private fun AlarmDetailScreenNewPreview() {
             isNewAlarm = true,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }
@@ -332,6 +370,7 @@ private fun AlarmDetailScreenEditPreview() {
             isNewAlarm = false,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }
@@ -346,6 +385,7 @@ private fun AlarmDetailScreenLoadingPreview() {
             isNewAlarm = false,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }
