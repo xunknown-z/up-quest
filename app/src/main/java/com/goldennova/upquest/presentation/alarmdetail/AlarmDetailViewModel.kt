@@ -51,6 +51,7 @@ class AlarmDetailViewModel @Inject constructor(
             is AlarmDetailEvent.ChangeLabel -> _uiState.update { it.copy(label = event.label) }
             is AlarmDetailEvent.ToggleDay -> toggleDay(event.day)
             is AlarmDetailEvent.ChangeDismissMode -> _uiState.update { it.copy(dismissMode = event.mode) }
+            is AlarmDetailEvent.ChangeRingtone -> _uiState.update { it.copy(ringtoneUri = event.uri) }
             is AlarmDetailEvent.Save -> save()
             is AlarmDetailEvent.Delete -> delete()
         }
@@ -71,6 +72,7 @@ class AlarmDetailViewModel @Inject constructor(
                                 repeatDays = alarm.repeatDays,
                                 label = alarm.label,
                                 dismissMode = alarm.dismissMode,
+                                ringtoneUri = alarm.ringtoneUri,
                             )
                         }
                     } else {
@@ -106,6 +108,7 @@ class AlarmDetailViewModel @Inject constructor(
                 label = state.label,
                 isEnabled = true,
                 dismissMode = state.dismissMode,
+                ringtoneUri = state.ringtoneUri,
             )
             _uiState.update { it.copy(isLoading = true) }
             saveAlarmUseCase(alarm)
