@@ -17,6 +17,7 @@ fun AlarmEntity.toDomain(): Alarm = Alarm(
     label = label,
     isEnabled = isEnabled,
     dismissMode = parseDismissMode(dismissMode, referencePhotoPath),
+    ringtoneUri = ringtoneUri,
 )
 
 /** 도메인 모델 [Alarm]을 [AlarmEntity]로 변환한다. */
@@ -29,6 +30,7 @@ fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
     isEnabled = isEnabled,
     dismissMode = formatDismissMode(dismissMode),
     referencePhotoPath = extractPhotoPath(dismissMode),
+    ringtoneUri = ringtoneUri,
 )
 
 // region 내부 변환 헬퍼
