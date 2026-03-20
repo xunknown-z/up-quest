@@ -55,6 +55,10 @@ class AlarmManagerScheduler(
                 putExtra(AlarmAlertActivity.EXTRA_ALARM_ID, alarm.id)
                 // 알림 표시 시 라벨을 사용하기 위해 extra로 전달
                 putExtra(AlarmBroadcastReceiver.EXTRA_ALARM_LABEL, alarm.label)
+                // 선택된 알람음 URI 전달 (null이면 기본 알람음)
+                putExtra(AlarmBroadcastReceiver.EXTRA_RINGTONE_URI, alarm.ringtoneUri)
+                // 소리 모드 전달
+                putExtra(AlarmBroadcastReceiver.EXTRA_SOUND_MODE, alarm.soundMode.name)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )

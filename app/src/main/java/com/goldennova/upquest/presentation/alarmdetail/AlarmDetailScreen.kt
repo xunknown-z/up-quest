@@ -1,5 +1,6 @@
 package com.goldennova.upquest.presentation.alarmdetail
 
+import android.media.RingtoneManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,11 +38,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import com.goldennova.upquest.R
+import com.goldennova.upquest.domain.model.AlarmSoundMode
 import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.presentation.theme.UpQuestTheme
 import java.time.DayOfWeek
@@ -56,12 +60,14 @@ fun AlarmDetailScreen(
     isNewAlarm: Boolean,
     onNavigateBack: () -> Unit,
     onNavigateToPhotoSetup: () -> Unit,
+    onPickRingtone: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     modifier: Modifier = Modifier,
 ) {
     val title = stringResource(
         if (isNewAlarm) R.string.alarm_detail_title_new else R.string.alarm_detail_title_edit
     )
+    val defaultLabel = stringResource(R.string.alarm_label_hint)
 
     Scaffold(
         modifier = modifier,
@@ -83,7 +89,7 @@ fun AlarmDetailScreen(
             AlarmDetailBottomBar(
                 isNewAlarm = isNewAlarm,
                 isLoading = uiState.isLoading,
-                onSave = { onEvent(AlarmDetailEvent.Save) },
+                onSave = { onEvent(AlarmDetailEvent.Save(defaultLabel)) },
                 onDelete = { onEvent(AlarmDetailEvent.Delete) },
             )
         },
@@ -102,6 +108,7 @@ fun AlarmDetailScreen(
                 uiState = uiState,
                 onEvent = onEvent,
                 onNavigateToPhotoSetup = onNavigateToPhotoSetup,
+                onPickRingtone = onPickRingtone,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -114,6 +121,7 @@ private fun AlarmDetailForm(
     uiState: AlarmDetailUiState,
     onEvent: (AlarmDetailEvent) -> Unit,
     onNavigateToPhotoSetup: () -> Unit,
+    onPickRingtone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val timePickerState = rememberTimePickerState(
@@ -157,6 +165,19 @@ private fun AlarmDetailForm(
             onChangeDismissMode = { onEvent(AlarmDetailEvent.ChangeDismissMode(it)) },
             onNavigateToPhotoSetup = onNavigateToPhotoSetup,
         )
+
+        SoundModeSection(
+            soundMode = uiState.soundMode,
+            onChangeSoundMode = { onEvent(AlarmDetailEvent.ChangeSoundMode(it)) },
+        )
+
+        // 진동만 모드에서는 알람음 선택 불필요
+        if (uiState.soundMode == AlarmSoundMode.SOUND_AND_VIBRATION) {
+            RingtoneRow(
+                ringtoneUri = uiState.ringtoneUri,
+                onPickRingtone = onPickRingtone,
+            )
+        }
     }
 }
 
@@ -264,6 +285,89 @@ private fun DismissModeSection(
 }
 
 @Composable
+private fun SoundModeSection(
+    soundMode: AlarmSoundMode,
+    onChangeSoundMode: (AlarmSoundMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.sound_mode_label),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        AlarmSoundMode.entries.forEach { mode ->
+            val label = stringResource(
+                when (mode) {
+                    AlarmSoundMode.SOUND_AND_VIBRATION -> R.string.sound_mode_sound_and_vibration
+                    AlarmSoundMode.VIBRATION_ONLY -> R.string.sound_mode_vibration_only
+                }
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = soundMode == mode,
+                        onClick = { onChangeSoundMode(mode) },
+                        role = Role.RadioButton,
+                    ),
+            ) {
+                RadioButton(
+                    selected = soundMode == mode,
+                    onClick = null,
+                )
+                Text(
+                    text = label,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RingtoneRow(
+    ringtoneUri: String?,
+    onPickRingtone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    // URI가 변경될 때마다 링톤 표시 이름을 조회
+    val ringtoneName = remember(ringtoneUri) {
+        ringtoneUri?.let { uriString ->
+            RingtoneManager.getRingtone(context, uriString.toUri())?.getTitle(context)
+        }
+    }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.ringtone_label),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                // URI가 null이거나 이름 조회 실패 시 "기본 알람음" 표시
+                text = ringtoneName ?: stringResource(R.string.ringtone_default),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedButton(onClick = onPickRingtone) {
+            Text(text = stringResource(R.string.ringtone_change))
+        }
+    }
+}
+
+@Composable
 private fun AlarmDetailBottomBar(
     isNewAlarm: Boolean,
     isLoading: Boolean,
@@ -312,6 +416,7 @@ private fun AlarmDetailScreenNewPreview() {
             isNewAlarm = true,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }
@@ -332,6 +437,7 @@ private fun AlarmDetailScreenEditPreview() {
             isNewAlarm = false,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }
@@ -346,6 +452,7 @@ private fun AlarmDetailScreenLoadingPreview() {
             isNewAlarm = false,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }

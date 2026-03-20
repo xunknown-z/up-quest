@@ -22,7 +22,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "upquest.db",
-        ).build()
+        ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3).build()
 
     @Provides
     fun provideAlarmDao(database: AppDatabase): AlarmDao = database.alarmDao()

@@ -2,6 +2,7 @@ package com.goldennova.upquest.data.local.mapper
 
 import com.goldennova.upquest.data.local.entity.AlarmEntity
 import com.goldennova.upquest.domain.model.Alarm
+import com.goldennova.upquest.domain.model.AlarmSoundMode
 import com.goldennova.upquest.domain.model.DismissMode
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertInstanceOf
@@ -210,6 +211,150 @@ class AlarmEntityMapperTest {
         val photoMode =
             assertInstanceOf(DismissMode.PhotoVerification::class.java, roundTripped.dismissMode)
         assertEquals("/storage/ref.jpg", photoMode.referencePhotoPath)
+    }
+
+    // endregion
+
+    // region ringtoneUri 매핑 검증
+
+    /** toDomain: ringtoneUri가 null인 Entity → 도메인 모델 변환 시 null 유지 검증. */
+    @Test
+    fun `toDomain - ringtoneUri가 null이면 도메인 모델의 ringtoneUri도 null이다`() {
+        val entity = AlarmEntity(
+            id = 1L,
+            hour = 7,
+            minute = 0,
+            repeatDays = "",
+            label = "",
+            isEnabled = true,
+            dismissMode = "NORMAL",
+            referencePhotoPath = null,
+            ringtoneUri = null,
+        )
+
+        val domain = entity.toDomain()
+
+        assertNull(domain.ringtoneUri)
+    }
+
+    /** toDomain: ringtoneUri가 non-null인 Entity → 도메인 모델 변환 시 값 유지 검증. */
+    @Test
+    fun `toDomain - ringtoneUri가 non-null이면 도메인 모델의 ringtoneUri에 값이 복원된다`() {
+        val uri = "content://media/internal/audio/media/12"
+        val entity = AlarmEntity(
+            id = 2L,
+            hour = 8,
+            minute = 0,
+            repeatDays = "",
+            label = "",
+            isEnabled = true,
+            dismissMode = "NORMAL",
+            referencePhotoPath = null,
+            ringtoneUri = uri,
+        )
+
+        val domain = entity.toDomain()
+
+        assertEquals(uri, domain.ringtoneUri)
+    }
+
+    /** toEntity: ringtoneUri가 null인 도메인 모델 → Entity 변환 시 null 유지 검증. */
+    @Test
+    fun `toEntity - ringtoneUri가 null이면 Entity의 ringtoneUri도 null이다`() {
+        val domain = Alarm(
+            id = 1L,
+            hour = 7,
+            minute = 0,
+            repeatDays = emptySet(),
+            label = "",
+            isEnabled = true,
+            dismissMode = DismissMode.Normal,
+            ringtoneUri = null,
+        )
+
+        val entity = domain.toEntity()
+
+        assertNull(entity.ringtoneUri)
+    }
+
+    /** toEntity: ringtoneUri가 non-null인 도메인 모델 → Entity 변환 시 값 유지 검증. */
+    @Test
+    fun `toEntity - ringtoneUri가 non-null이면 Entity의 ringtoneUri에 값이 저장된다`() {
+        val uri = "content://media/internal/audio/media/12"
+        val domain = Alarm(
+            id = 2L,
+            hour = 8,
+            minute = 0,
+            repeatDays = emptySet(),
+            label = "",
+            isEnabled = true,
+            dismissMode = DismissMode.Normal,
+            ringtoneUri = uri,
+        )
+
+        val entity = domain.toEntity()
+
+        assertEquals(uri, entity.ringtoneUri)
+    }
+
+    // endregion
+
+    // region soundMode 매핑 검증
+
+    /** toDomain: soundMode 기본값(SOUND_AND_VIBRATION) 변환 검증. */
+    @Test
+    fun `toDomain - soundMode가 SOUND_AND_VIBRATION이면 도메인 모델의 soundMode도 SOUND_AND_VIBRATION이다`() {
+        val entity = AlarmEntity(
+            id = 1L, hour = 7, minute = 0, repeatDays = "", label = "",
+            isEnabled = true, dismissMode = "NORMAL", referencePhotoPath = null,
+            soundMode = "SOUND_AND_VIBRATION",
+        )
+
+        val domain = entity.toDomain()
+
+        assertEquals(AlarmSoundMode.SOUND_AND_VIBRATION, domain.soundMode)
+    }
+
+    /** toDomain: soundMode VIBRATION_ONLY 변환 검증. */
+    @Test
+    fun `toDomain - soundMode가 VIBRATION_ONLY이면 도메인 모델의 soundMode도 VIBRATION_ONLY이다`() {
+        val entity = AlarmEntity(
+            id = 1L, hour = 7, minute = 0, repeatDays = "", label = "",
+            isEnabled = true, dismissMode = "NORMAL", referencePhotoPath = null,
+            soundMode = "VIBRATION_ONLY",
+        )
+
+        val domain = entity.toDomain()
+
+        assertEquals(AlarmSoundMode.VIBRATION_ONLY, domain.soundMode)
+    }
+
+    /** toDomain: 알 수 없는 soundMode 문자열 → 기본값 SOUND_AND_VIBRATION 폴백 검증. */
+    @Test
+    fun `toDomain - 알 수 없는 soundMode 문자열이면 SOUND_AND_VIBRATION으로 폴백된다`() {
+        val entity = AlarmEntity(
+            id = 1L, hour = 7, minute = 0, repeatDays = "", label = "",
+            isEnabled = true, dismissMode = "NORMAL", referencePhotoPath = null,
+            soundMode = "UNKNOWN_VALUE",
+        )
+
+        val domain = entity.toDomain()
+
+        assertEquals(AlarmSoundMode.SOUND_AND_VIBRATION, domain.soundMode)
+    }
+
+    /** toEntity: VIBRATION_ONLY 도메인 모델 → Entity 변환 검증. */
+    @Test
+    fun `toEntity - soundMode가 VIBRATION_ONLY이면 Entity의 soundMode에 VIBRATION_ONLY가 저장된다`() {
+        val domain = Alarm(
+            id = 1L, hour = 7, minute = 0, repeatDays = emptySet(), label = "",
+            isEnabled = true, dismissMode = DismissMode.Normal,
+            soundMode = AlarmSoundMode.VIBRATION_ONLY,
+        )
+
+        val entity = domain.toEntity()
+
+        assertEquals("VIBRATION_ONLY", entity.soundMode)
     }
 
     // endregion

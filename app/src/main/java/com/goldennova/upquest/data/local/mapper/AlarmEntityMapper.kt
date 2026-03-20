@@ -2,6 +2,7 @@ package com.goldennova.upquest.data.local.mapper
 
 import com.goldennova.upquest.data.local.entity.AlarmEntity
 import com.goldennova.upquest.domain.model.Alarm
+import com.goldennova.upquest.domain.model.AlarmSoundMode
 import com.goldennova.upquest.domain.model.DismissMode
 import java.time.DayOfWeek
 
@@ -17,6 +18,8 @@ fun AlarmEntity.toDomain(): Alarm = Alarm(
     label = label,
     isEnabled = isEnabled,
     dismissMode = parseDismissMode(dismissMode, referencePhotoPath),
+    ringtoneUri = ringtoneUri,
+    soundMode = parseSoundMode(soundMode),
 )
 
 /** 도메인 모델 [Alarm]을 [AlarmEntity]로 변환한다. */
@@ -29,6 +32,8 @@ fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
     isEnabled = isEnabled,
     dismissMode = formatDismissMode(dismissMode),
     referencePhotoPath = extractPhotoPath(dismissMode),
+    ringtoneUri = ringtoneUri,
+    soundMode = soundMode.name,
 )
 
 // region 내부 변환 헬퍼
@@ -58,6 +63,10 @@ private fun formatDismissMode(mode: DismissMode): String =
         is DismissMode.PhotoVerification -> DISMISS_MODE_PHOTO
         DismissMode.Normal -> DISMISS_MODE_NORMAL
     }
+
+/** soundMode 문자열 → [AlarmSoundMode]. 알 수 없는 값은 기본값으로 폴백. */
+private fun parseSoundMode(value: String): AlarmSoundMode =
+    runCatching { AlarmSoundMode.valueOf(value) }.getOrDefault(AlarmSoundMode.SOUND_AND_VIBRATION)
 
 /** [DismissMode]에서 사진 경로 추출. Normal이면 null. */
 private fun extractPhotoPath(mode: DismissMode): String? =

@@ -51,7 +51,9 @@ class AlarmDetailViewModel @Inject constructor(
             is AlarmDetailEvent.ChangeLabel -> _uiState.update { it.copy(label = event.label) }
             is AlarmDetailEvent.ToggleDay -> toggleDay(event.day)
             is AlarmDetailEvent.ChangeDismissMode -> _uiState.update { it.copy(dismissMode = event.mode) }
-            is AlarmDetailEvent.Save -> save()
+            is AlarmDetailEvent.ChangeRingtone -> _uiState.update { it.copy(ringtoneUri = event.uri) }
+            is AlarmDetailEvent.ChangeSoundMode -> _uiState.update { it.copy(soundMode = event.mode) }
+            is AlarmDetailEvent.Save -> save(event.defaultLabel)
             is AlarmDetailEvent.Delete -> delete()
         }
     }
@@ -71,6 +73,8 @@ class AlarmDetailViewModel @Inject constructor(
                                 repeatDays = alarm.repeatDays,
                                 label = alarm.label,
                                 dismissMode = alarm.dismissMode,
+                                ringtoneUri = alarm.ringtoneUri,
+                                soundMode = alarm.soundMode,
                             )
                         }
                     } else {
@@ -95,7 +99,7 @@ class AlarmDetailViewModel @Inject constructor(
     }
 
     // 알람 저장 — 신규면 insert, 수정이면 update
-    private fun save() {
+    private fun save(defaultLabel: String) {
         viewModelScope.launch {
             val state = _uiState.value
             val alarm = Alarm(
@@ -103,9 +107,11 @@ class AlarmDetailViewModel @Inject constructor(
                 hour = state.hour,
                 minute = state.minute,
                 repeatDays = state.repeatDays,
-                label = state.label,
+                label = state.label.ifBlank { defaultLabel }, // 빈 라벨이면 기본값 사용
                 isEnabled = true,
                 dismissMode = state.dismissMode,
+                ringtoneUri = state.ringtoneUri,
+                soundMode = state.soundMode,
             )
             _uiState.update { it.copy(isLoading = true) }
             saveAlarmUseCase(alarm)
