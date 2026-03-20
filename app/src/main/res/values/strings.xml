@@ -46,4 +46,9 @@
     <string name="ringtone_default">Default Alarm Sound</string>
     <string name="ringtone_change">Change</string>
     <string name="photo_reference_change">Change Photo</string>
+    <string name="photo_comparison_reference">Reference Photo</string>
+    <string name="photo_comparison_captured">Current Photo</string>
+    <string name="photo_comparison_analyzing">Analyzing…</string>
+    <string name="photo_comparison_failed">Verification failed. Please try again.</string>
+    <string name="photo_comparison_retry">Retry</string>
 </resources>

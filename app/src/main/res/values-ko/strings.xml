@@ -47,4 +47,9 @@
     <string name="ringtone_default">기본 알람음</string>
     <string name="ringtone_change">변경</string>
     <string name="photo_reference_change">사진 변경</string>
+    <string name="photo_comparison_reference">등록된 사진</string>
+    <string name="photo_comparison_captured">현재 사진</string>
+    <string name="photo_comparison_analyzing">사진 분석 중…</string>
+    <string name="photo_comparison_failed">인증 실패. 다시 시도해 주세요.</string>
+    <string name="photo_comparison_retry">다시 시도</string>
 </resources>

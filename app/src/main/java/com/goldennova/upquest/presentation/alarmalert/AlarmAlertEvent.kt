@@ -7,4 +7,6 @@ sealed interface AlarmAlertEvent {
     data object TakeVerificationPhoto : AlarmAlertEvent
     // 사진 인증 완료 — 촬영된 이미지 경로 전달
     data class PhotoVerified(val capturedImagePath: String) : AlarmAlertEvent
+    // 사진 인증 실패 후 재시도 — 비교 화면을 닫고 카메라 프리뷰로 복귀
+    data object RetryPhotoVerification : AlarmAlertEvent
 }
