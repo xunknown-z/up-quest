@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -38,12 +40,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import coil.compose.AsyncImage
+import java.io.File
 import com.goldennova.upquest.R
 import com.goldennova.upquest.domain.model.AlarmSoundMode
 import com.goldennova.upquest.domain.model.DismissMode
@@ -251,34 +257,52 @@ private fun DismissModeSection(
                 modifier = Modifier.padding(start = 4.dp),
             )
         }
-        // TODO 사진 기능 완성되면 추가
-//        Row(
-//            verticalAlignment = Alignment.CenterVertically,
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .selectable(
-//                    selected = dismissMode is DismissMode.PhotoVerification,
-//                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification(null)) },
-//                    role = Role.RadioButton,
-//                ),
-//        ) {
-//            RadioButton(
-//                selected = dismissMode is DismissMode.PhotoVerification,
-//                onClick = null,
-//            )
-//            Text(
-//                text = stringResource(R.string.dismiss_photo),
-//                modifier = Modifier.padding(start = 4.dp),
-//            )
-//        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = dismissMode is DismissMode.PhotoVerification,
+                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification(null)) },
+                    role = Role.RadioButton,
+                ),
+        ) {
+            RadioButton(
+                selected = dismissMode is DismissMode.PhotoVerification,
+                onClick = null,
+            )
+            Text(
+                text = stringResource(R.string.dismiss_photo),
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
         if (dismissMode is DismissMode.PhotoVerification) {
+            val photoPath = dismissMode.referencePhotoPath
+            if (photoPath != null) {
+                // 기준 사진 미리보기
+                AsyncImage(
+                    model = File(photoPath),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                )
+            }
             Button(
                 onClick = onNavigateToPhotoSetup,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp),
             ) {
-                Text(text = stringResource(R.string.photo_setup_title))
+                Text(
+                    text = stringResource(
+                        if (photoPath != null) R.string.photo_reference_change
+                        else R.string.photo_setup_title,
+                    ),
+                )
             }
         }
     }

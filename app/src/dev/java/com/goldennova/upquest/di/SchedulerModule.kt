@@ -1,9 +1,8 @@
 package com.goldennova.upquest.di
 
-import android.app.AlarmManager
 import android.content.Context
 import android.os.Build
-import com.goldennova.upquest.data.alarm.AlarmManagerScheduler
+import com.goldennova.upquest.data.alarm.FakeAlarmScheduler
 import com.goldennova.upquest.data.alarm.SystemVibrationPlayer
 import com.goldennova.upquest.domain.alarm.AlarmScheduler
 import com.goldennova.upquest.domain.alarm.VibrationPlayer
@@ -20,10 +19,7 @@ object SchedulerModule {
 
     @Provides
     @Singleton
-    fun provideAlarmScheduler(
-        @ApplicationContext context: Context,
-        alarmManager: AlarmManager,
-    ): AlarmScheduler = AlarmManagerScheduler(context, alarmManager, Build.VERSION.SDK_INT)
+    fun provideAlarmScheduler(impl: FakeAlarmScheduler): AlarmScheduler = impl
 
     @Provides
     @Singleton

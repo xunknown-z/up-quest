@@ -35,11 +35,20 @@
     <string name="notification_channel_alarm_name">Alarm</string>
     <string name="permission_full_screen_intent_title">Full Screen Notification Required</string>
     <string name="permission_full_screen_intent_description">To show the alarm on your lock screen, please allow full screen notifications in settings.</string>
+    <string name="permission_battery_optimization_title">Battery Optimization Exception Required</string>
+    <string name="permission_battery_optimization_description">To ensure alarms ring reliably even in Doze mode, please disable battery optimization for this app.</string>
     <string name="alarm_alert_no_reference_photo">No reference photo set. Please configure the alarm again.</string>
+    <string name="alarm_alert_no_reference_photo_message">No reference photo has been registered. Please use the normal dismiss button.</string>
     <string name="sound_mode_label">Sound Mode</string>
     <string name="sound_mode_sound_and_vibration">Sound &amp; Vibration</string>
     <string name="sound_mode_vibration_only">Vibration Only</string>
     <string name="ringtone_label">Ringtone</string>
     <string name="ringtone_default">Default Alarm Sound</string>
     <string name="ringtone_change">Change</string>
+    <string name="photo_reference_change">Change Photo</string>
+    <string name="photo_comparison_reference">Reference Photo</string>
+    <string name="photo_comparison_captured">Current Photo</string>
+    <string name="photo_comparison_analyzing">Analyzing…</string>
+    <string name="photo_comparison_failed">Verification failed. Please try again.</string>
+    <string name="photo_comparison_retry">Retry</string>
 </resources>

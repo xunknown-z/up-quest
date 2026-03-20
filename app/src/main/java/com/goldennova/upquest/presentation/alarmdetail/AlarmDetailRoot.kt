@@ -3,6 +3,7 @@ package com.goldennova.upquest.presentation.alarmdetail
 import android.Manifest
 import android.app.AlarmManager
 import android.app.NotificationManager
+import android.os.PowerManager
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
@@ -110,7 +111,17 @@ fun AlarmDetailRoot(
         }
     }
 
-    // ③ USE_FULL_SCREEN_INTENT 권한 처리 (API 34+, 특수 권한)
+    // ③ 배터리 최적화 예외 처리 — 도즈 모드에서 알람 신뢰성 보장
+    val powerManager = remember { context.getSystemService(PowerManager::class.java) }
+    var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            showBatteryOptimizationDialog = true
+        }
+    }
+
+    // ④ USE_FULL_SCREEN_INTENT 권한 처리 (API 34+, 특수 권한)
     // 미허용 시 잠금 화면에서 알람 화면이 표시되지 않으므로 설정으로 안내한다
     val notificationManager = remember { context.getSystemService(NotificationManager::class.java) }
 
@@ -148,6 +159,13 @@ fun AlarmDetailRoot(
             if (alarmManager?.canScheduleExactAlarms() == false && !showExactAlarmSettingsDialog) {
                 showExactAlarmSettingsDialog = true
             }
+        }
+
+        // 배터리 최적화 재확인 — 허용됐으면 다이얼로그 닫힘
+        if (powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            showBatteryOptimizationDialog = false
+        } else if (!showBatteryOptimizationDialog) {
+            showBatteryOptimizationDialog = true
         }
 
         // USE_FULL_SCREEN_INTENT 재확인 — 허용됐으면 다이얼로그 닫힘
@@ -204,6 +222,22 @@ fun AlarmDetailRoot(
                 }
             },
             onDismiss = { showFullScreenIntentDialog = false },
+        )
+    }
+
+    // 배터리 최적화 — 시스템 설정 안내 다이얼로그
+    if (showBatteryOptimizationDialog) {
+        PermissionSettingsDialog(
+            title = context.getString(R.string.permission_battery_optimization_title),
+            description = context.getString(R.string.permission_battery_optimization_description),
+            onGoToSettings = {
+                showBatteryOptimizationDialog = false
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+                context.startActivity(intent)
+            },
+            onDismiss = { showBatteryOptimizationDialog = false },
         )
     }
 
