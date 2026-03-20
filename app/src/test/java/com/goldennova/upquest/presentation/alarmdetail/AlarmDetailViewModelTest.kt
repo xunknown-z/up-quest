@@ -244,6 +244,32 @@ class AlarmDetailViewModelTest {
 
     // endregion
 
+    // region Event — ChangeRingtone
+
+    @Test
+    fun `ChangeRingtone 이벤트 처리 시 ringtoneUri가 업데이트된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val uri = "content://media/internal/audio/media/12"
+            val viewModel = createViewModel()
+
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(uri))
+
+            assertEquals(uri, viewModel.uiState.value.ringtoneUri)
+        }
+
+    @Test
+    fun `ChangeRingtone 이벤트에 null 전달 시 ringtoneUri가 null이 된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel()
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone("content://media/internal/audio/media/12"))
+
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(null))
+
+            assertEquals(null, viewModel.uiState.value.ringtoneUri)
+        }
+
+    // endregion
+
     // region Event — Save
 
     @Test
@@ -298,6 +324,19 @@ class AlarmDetailViewModelTest {
             viewModel.onEvent(AlarmDetailEvent.Save)
 
             coVerify { saveAlarmUseCase(match { it.id == 5L }) }
+        }
+
+    @Test
+    fun `Save 시 ringtoneUri가 saveAlarmUseCase 파라미터에 포함된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val uri = "content://media/internal/audio/media/12"
+            coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
+            val viewModel = createViewModel(alarmId = -1L)
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(uri))
+
+            viewModel.onEvent(AlarmDetailEvent.Save)
+
+            coVerify { saveAlarmUseCase(match { it.ringtoneUri == uri }) }
         }
 
     // endregion
