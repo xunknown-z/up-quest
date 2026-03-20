@@ -1,5 +1,9 @@
 package com.goldennova.upquest.presentation.alarmalert
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -26,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +50,7 @@ import com.goldennova.upquest.domain.model.Alarm
 import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.presentation.components.CameraPreview
 import java.io.File
+import kotlinx.coroutines.delay
 
 @Composable
 fun AlarmAlertScreen(
@@ -56,7 +62,6 @@ fun AlarmAlertScreen(
     val alarm = uiState.alarm
     val isPhotoMode = alarm?.dismissMode is DismissMode.PhotoVerification
     val isPhotoModeWithoutReference = isPhotoMode && !uiState.hasReferencePhoto
-    // 촬영된 사진이 있으면 비교 화면 표시
     val isComparingPhotos = uiState.capturedImagePath != null
 
     var captureAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -79,79 +84,148 @@ fun AlarmAlertScreen(
                 )
             }
 
-            if (isComparingPhotos) {
-                // 비교 화면: 등록된 사진 vs 현재 사진
-                val referencePath =
-                    (alarm?.dismissMode as? DismissMode.PhotoVerification)?.referencePhotoPath
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    AlarmInfoCard(
-                        alarm = alarm,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    PhotoComparisonSection(
-                        referencePath = referencePath,
-                        capturedPath = uiState.capturedImagePath!!,
-                        isVerifying = uiState.isVerifying,
-                        verificationFailed = uiState.verificationFailed,
-                        onRetry = { onEvent(AlarmAlertEvent.RetryPhotoVerification) },
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-            } else {
-                // 기본 화면: 알람 카드 + 액션 버튼
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    AlarmInfoCard(
-                        alarm = alarm,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    // 참조 사진 미등록 경고 메시지
-                    if (isPhotoModeWithoutReference) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = stringResource(R.string.alarm_alert_no_reference_photo_message),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    // 해제 방식에 따른 액션 버튼
-                    if (isPhotoMode && uiState.hasReferencePhoto) {
-                        Button(
-                            onClick = { captureAction?.invoke() },
+            when {
+                isComparingPhotos -> {
+                    // 비교 화면: 등록된 사진 vs 현재 사진
+                    val referencePath =
+                        (alarm?.dismissMode as? DismissMode.PhotoVerification)?.referencePhotoPath
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        AlarmInfoCard(
+                            alarm = alarm,
                             modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(text = stringResource(R.string.alarm_alert_take_photo))
+                        )
+                        PhotoComparisonSection(
+                            referencePath = referencePath,
+                            capturedPath = uiState.capturedImagePath ?: return@Column,
+                            isVerifying = uiState.isVerifying,
+                            verificationFailed = uiState.verificationFailed,
+                            onRetry = { onEvent(AlarmAlertEvent.RetryPhotoVerification) },
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+
+                isPhotoMode && uiState.hasReferencePhoto -> {
+                    // 사진 모드 전용 레이아웃 — 5초 후 카드가 좌상단으로 이동
+                    PhotoModeLayout(
+                        alarm = alarm,
+                        captureAction = captureAction,
+                    )
+                }
+
+                else -> {
+                    // 일반 모드 또는 참조 사진 미등록 상태
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        AlarmInfoCard(
+                            alarm = alarm,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+
+                        if (isPhotoModeWithoutReference) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = stringResource(R.string.alarm_alert_no_reference_photo_message),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                            )
                         }
-                    } else {
+
+                        Spacer(modifier = Modifier.weight(1f))
+
                         Button(
                             onClick = { onEvent(AlarmAlertEvent.DismissNormal) },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(text = stringResource(R.string.dismiss_normal))
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
+        }
+    }
+}
+
+/**
+ * 사진 인증 모드 전용 레이아웃.
+ *
+ * 5초 동안은 알람 카드가 화면 중앙에서 흔들리고,
+ * 5초 경과 후에는 카드가 좌상단으로 fade되어 작게 표시된다.
+ * 촬영 버튼은 항상 하단에 고정된다.
+ */
+@Composable
+private fun PhotoModeLayout(
+    alarm: Alarm?,
+    captureAction: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    var isCardMinimized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(5_000L)
+        isCardMinimized = true
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+    ) {
+        // 카드 영역: 5초 전 중앙 ↔ 5초 후 좌상단
+        AnimatedContent(
+            targetState = isCardMinimized,
+            transitionSpec = {
+                fadeIn(tween(800)) togetherWith fadeOut(tween(800))
+            },
+            modifier = Modifier.fillMaxSize(),
+            label = "cardPosition",
+        ) { minimized ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (minimized) {
+                    // 좌상단 — 시간만 표시하는 작은 카드
+                    AlarmInfoCardMini(
+                        alarm = alarm,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(top = 16.dp),
+                    )
+                } else {
+                    // 중앙 — 기존 전체 크기 카드
+                    AlarmInfoCard(
+                        alarm = alarm,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .fillMaxWidth(),
+                    )
+                }
+            }
+        }
+
+        // 촬영 버튼은 항상 하단 고정
+        Button(
+            onClick = { captureAction?.invoke() },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+        ) {
+            Text(text = stringResource(R.string.alarm_alert_take_photo))
         }
     }
 }
@@ -171,7 +245,6 @@ private fun PhotoComparisonSection(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 두 사진 나란히 표시
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -190,7 +263,6 @@ private fun PhotoComparisonSection(
             )
         }
 
-        // 분석 상태 표시
         if (isVerifying) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -260,23 +332,13 @@ private fun ComparisonPhotoCard(
     }
 }
 
-/** InfiniteTransition으로 좌우 흔들림 애니메이션이 적용된 알람 정보 카드 */
+/** 화면 중앙에 크게 표시되는 흔들리는 알람 카드 */
 @Composable
 private fun AlarmInfoCard(
     alarm: Alarm?,
     modifier: Modifier = Modifier,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "shake")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = -4f,
-        targetValue = 4f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 120, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "rotation",
-    )
-
+    val rotation by shakeRotation()
     Card(
         modifier = modifier.graphicsLayer { rotationZ = rotation },
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
@@ -300,12 +362,57 @@ private fun AlarmInfoCard(
             )
             if (!alarm?.label.isNullOrBlank()) {
                 Text(
-                    text = alarm!!.label,
+                    text = alarm.label,
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
         }
     }
+}
+
+/** 좌상단에 작게 표시되는 흔들리는 알람 카드 — 시간만 노출 */
+@Composable
+private fun AlarmInfoCardMini(
+    alarm: Alarm?,
+    modifier: Modifier = Modifier,
+) {
+    val rotation by shakeRotation()
+    Card(
+        modifier = modifier.graphicsLayer { rotationZ = rotation },
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.alarm_alert_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = alarm?.let { formatTime(it.hour, it.minute) } ?: "--:--",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+/** 좌우 반복 흔들림 회전값을 반환하는 공통 헬퍼 */
+@Composable
+private fun shakeRotation(): androidx.compose.runtime.State<Float> {
+    val infiniteTransition = rememberInfiniteTransition(label = "shake")
+    return infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 120, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "rotation",
+    )
 }
 
 private fun formatTime(hour: Int, minute: Int): String =
