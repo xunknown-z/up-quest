@@ -290,6 +290,14 @@ private fun DismissModeSection(
                         .padding(top = 4.dp)
                         .clip(RoundedCornerShape(8.dp)),
                 )
+            } else {
+                // 사진 미등록 시 경고 힌트
+                Text(
+                    text = stringResource(R.string.photo_required_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
             Button(
                 onClick = onNavigateToPhotoSetup,

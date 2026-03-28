@@ -45,6 +45,7 @@
     <string name="ringtone_label">Ringtone</string>
     <string name="ringtone_default">Default Alarm Sound</string>
     <string name="ringtone_change">Change</string>
+    <string name="photo_required_hint">A reference photo is required to save.</string>
     <string name="photo_reference_change">Change Photo</string>
     <string name="photo_comparison_reference">Reference Photo</string>
     <string name="photo_comparison_captured">Current Photo</string>

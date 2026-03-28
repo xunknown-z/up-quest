@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.goldennova.upquest.domain.model.Alarm
+import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.domain.usecase.DeleteAlarmUseCase
 import com.goldennova.upquest.domain.usecase.GetAlarmByIdUseCase
 import com.goldennova.upquest.domain.usecase.SaveAlarmUseCase
@@ -102,6 +103,17 @@ class AlarmDetailViewModel @Inject constructor(
     private fun save(defaultLabel: String) {
         viewModelScope.launch {
             val state = _uiState.value
+
+            // 사진 인증 모드인데 기준 사진이 없으면 저장 차단
+            if (state.dismissMode is DismissMode.PhotoVerification &&
+                state.dismissMode.referencePhotoPath == null
+            ) {
+                _sideEffect.emit(
+                    AlarmDetailSideEffect.ShowError("사진 인증 모드에서는 기준 사진을 등록해야 합니다.")
+                )
+                return@launch
+            }
+
             val alarm = Alarm(
                 id = if (isNewAlarm) 0L else alarmId,
                 hour = state.hour,
