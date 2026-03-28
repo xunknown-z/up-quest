@@ -24,7 +24,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AlarmDetailViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val getAlarmByIdUseCase: GetAlarmByIdUseCase,
     private val saveAlarmUseCase: SaveAlarmUseCase,
     private val deleteAlarmUseCase: DeleteAlarmUseCase,

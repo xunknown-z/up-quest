@@ -25,6 +25,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goldennova.upquest.R
+import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.presentation.components.PermissionRationaleDialog
 import com.goldennova.upquest.presentation.components.PermissionSettingsDialog
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -38,11 +39,23 @@ fun AlarmDetailRoot(
     alarmId: Long = -1L,
     onNavigateBack: () -> Unit = {},
     onNavigateToPhotoSetup: (Long) -> Unit = {},
+    photoPathResult: String? = null,
+    onPhotoPathResultConsumed: () -> Unit = {},
     viewModel: AlarmDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+
+    // PhotoSetup에서 전달된 사진 경로를 dismissMode에 반영
+    LaunchedEffect(photoPathResult) {
+        if (photoPathResult != null) {
+            viewModel.onEvent(
+                AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification(photoPathResult))
+            )
+            onPhotoPathResultConsumed()
+        }
+    }
 
     // 링톤 선택 결과 처리 — 선택된 URI를 ChangeRingtone 이벤트로 전달
     val ringtoneLauncher = rememberLauncherForActivityResult(
