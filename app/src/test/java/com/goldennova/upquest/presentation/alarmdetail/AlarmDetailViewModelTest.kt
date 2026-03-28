@@ -378,6 +378,46 @@ class AlarmDetailViewModelTest {
             coVerify { saveAlarmUseCase(match { it.ringtoneUri == uri }) }
         }
 
+    @Test
+    fun `사진 인증 모드에서 기준 사진 없이 Save 시 ShowError SideEffect가 방출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel(alarmId = -1L)
+            // 사진 경로 없이 사진 인증 모드 선택
+            viewModel.onEvent(AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification(null)))
+            val effects = mutableListOf<AlarmDetailSideEffect>()
+            val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            assertTrue(effects.firstOrNull() is AlarmDetailSideEffect.ShowError)
+            job.cancel()
+        }
+
+    @Test
+    fun `사진 인증 모드에서 기준 사진 없이 Save 시 saveAlarmUseCase가 호출되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel(alarmId = -1L)
+            viewModel.onEvent(AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification(null)))
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            coVerify(exactly = 0) { saveAlarmUseCase(any()) }
+        }
+
+    @Test
+    fun `사진 인증 모드에서 기준 사진이 등록된 경우 Save 시 saveAlarmUseCase가 호출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
+            val viewModel = createViewModel(alarmId = -1L)
+            viewModel.onEvent(
+                AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification("/storage/photo.jpg"))
+            )
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            coVerify(exactly = 1) { saveAlarmUseCase(any()) }
+        }
+
     // endregion
 
     // region Event — Delete

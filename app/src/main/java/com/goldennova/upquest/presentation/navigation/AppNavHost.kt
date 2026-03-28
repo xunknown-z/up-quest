@@ -1,7 +1,9 @@
 package com.goldennova.upquest.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.toRoute
@@ -36,6 +38,10 @@ fun AppNavHost(
 
         composable<AlarmDetail> { backStackEntry ->
             val route = backStackEntry.toRoute<AlarmDetail>()
+            // PhotoSetup에서 전달한 사진 경로를 NavBackStackEntry.savedStateHandle로 수신
+            val photoPathResult by backStackEntry.savedStateHandle
+                .getStateFlow<String?>("referencePhotoPath", null)
+                .collectAsStateWithLifecycle()
             AlarmDetailRoot(
                 alarmId = route.alarmId,
                 onNavigateBack = {
@@ -43,6 +49,10 @@ fun AppNavHost(
                 },
                 onNavigateToPhotoSetup = { alarmId ->
                     navController.navigate(PhotoSetup(alarmId = alarmId))
+                },
+                photoPathResult = photoPathResult,
+                onPhotoPathResultConsumed = {
+                    backStackEntry.savedStateHandle["referencePhotoPath"] = null
                 },
             )
         }
@@ -60,6 +70,13 @@ fun AppNavHost(
             PhotoSetupRoot(
                 alarmId = route.alarmId,
                 onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateBackWithPath = { path ->
+                    // 이전 백스택(AlarmDetail)의 SavedStateHandle에 사진 경로 전달
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("referencePhotoPath", path)
                     navController.popBackStack()
                 },
             )

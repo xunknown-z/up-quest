@@ -44,6 +44,7 @@ import com.google.accompanist.permissions.shouldShowRationale
 fun PhotoSetupRoot(
     alarmId: Long,
     onNavigateBack: () -> Unit = {},
+    onNavigateBackWithPath: (String) -> Unit = {},
     viewModel: PhotoSetupViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -94,11 +95,11 @@ fun PhotoSetupRoot(
         }
     }
 
-    // SideEffect 수집 — 촬영 확인 완료 시 뒤로 이동
+    // SideEffect 수집 — 촬영 확인 완료 시 사진 경로와 함께 뒤로 이동
     LaunchedEffect(Unit) {
         viewModel.sideEffect.collect { effect ->
             when (effect) {
-                is PhotoSetupSideEffect.NavigateBackWithPath -> onNavigateBack()
+                is PhotoSetupSideEffect.NavigateBackWithPath -> onNavigateBackWithPath(effect.path)
             }
         }
     }
