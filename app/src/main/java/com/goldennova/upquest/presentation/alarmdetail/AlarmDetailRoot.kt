@@ -5,12 +5,9 @@ import android.app.AlarmManager
 import android.app.NotificationManager
 import android.os.PowerManager
 import android.content.Intent
-import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,7 +16,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.IntentCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -57,19 +53,7 @@ fun AlarmDetailRoot(
         }
     }
 
-    // 링톤 선택 결과 처리 — 선택된 URI를 ChangeRingtone 이벤트로 전달
-    val ringtoneLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        val pickedUri = result.data?.let { data ->
-            IntentCompat.getParcelableExtra(
-                data,
-                RingtoneManager.EXTRA_RINGTONE_PICKED_URI,
-                Uri::class.java,
-            )
-        }
-        viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(pickedUri?.toString()))
-    }
+    var showRingtonePicker by remember { mutableStateOf(false) }
 
     // SideEffect 수집 — 내비게이션 및 스낵바 처리
     LaunchedEffect(Unit) {
@@ -278,18 +262,19 @@ fun AlarmDetailRoot(
         isNewAlarm = alarmId == -1L,
         onNavigateBack = onNavigateBack,
         onNavigateToPhotoSetup = { onNavigateToPhotoSetup(alarmId) },
-        onPickRingtone = {
-            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
-                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                // 현재 선택된 URI를 picker 초기값으로 설정
-                uiState.ringtoneUri?.let {
-                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
-                }
-            }
-            ringtoneLauncher.launch(intent)
-        },
+        onPickRingtone = { showRingtonePicker = true },
         snackbarHostState = snackbarHostState,
     )
+
+    // 커스텀 링톤 피커 — USAGE_ALARM으로 재생해 진동·무음 모드에서도 소리 확인 가능
+    if (showRingtonePicker) {
+        AlarmRingtonePicker(
+            currentUri = uiState.ringtoneUri,
+            onConfirm = { uri ->
+                showRingtonePicker = false
+                viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(uri))
+            },
+            onDismiss = { showRingtonePicker = false },
+        )
+    }
 }

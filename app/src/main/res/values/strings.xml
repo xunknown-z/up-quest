@@ -42,6 +42,7 @@
     <string name="sound_mode_label">Sound Mode</string>
     <string name="sound_mode_sound_and_vibration">Sound &amp; Vibration</string>
     <string name="sound_mode_vibration_only">Vibration Only</string>
+    <string name="ringtone_picker_title">Select Ringtone</string>
     <string name="ringtone_label">Ringtone</string>
     <string name="ringtone_default">Default Alarm Sound</string>
     <string name="ringtone_change">Change</string>

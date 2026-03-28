@@ -43,6 +43,7 @@
     <string name="sound_mode_label">소리 모드</string>
     <string name="sound_mode_sound_and_vibration">소리 + 진동</string>
     <string name="sound_mode_vibration_only">진동만</string>
+    <string name="ringtone_picker_title">알람음 선택</string>
     <string name="ringtone_label">알람음</string>
     <string name="ringtone_default">기본 알람음</string>
     <string name="ringtone_change">변경</string>

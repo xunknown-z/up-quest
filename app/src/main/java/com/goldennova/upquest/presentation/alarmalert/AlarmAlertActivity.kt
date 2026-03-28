@@ -54,6 +54,9 @@ class AlarmAlertActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // BroadcastReceiver에서 시작한 진동이 Activity 전환 중 끊길 수 있으므로 여기서도 시작
+        // 화면 회전 등 재생성 시에도 진동이 유지됨
+        vibrationPlayer.vibrate()
         setContent {
             UpQuestTheme {
                 AlarmAlertRoot(
@@ -66,8 +69,10 @@ class AlarmAlertActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // 화면 회전 등 구성 변경으로 재생성되는 경우에는 중지하지 않음 — onCreate()에서 재시작됨
+        if (isChangingConfigurations) return
         val alarmId = intent.getLongExtra(EXTRA_ALARM_ID, -1L)
-        // Activity 종료(알람 해제 또는 강제 종료) 시 알람음·진동 중지 및 알림 취소
+        // Activity 완전 종료(알람 해제 또는 강제 종료) 시 알람음·진동 중지 및 알림 취소
         alarmSoundPlayer.stop()
         vibrationPlayer.cancel()
         if (alarmId != -1L) notificationHelper.cancelAlarmNotification(alarmId)

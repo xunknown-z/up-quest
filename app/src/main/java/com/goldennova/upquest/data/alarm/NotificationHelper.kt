@@ -48,8 +48,10 @@ class NotificationHelper @Inject constructor(
             context.getString(R.string.notification_channel_alarm_name),
             NotificationManager.IMPORTANCE_HIGH,
         ).apply {
-            // 채널 수준 진동 비활성화 (AlarmBroadcastReceiver에서 VibrationPlayer가 별도 처리)
-            enableVibration(false)
+            // 채널 수준 진동 활성화 및 반복 패턴 설정
+            // [0ms OFF → 1000ms ON → 500ms OFF] 패턴으로 알람 알림 도착 시 진동
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0L, 1000L, 500L)
         }
         context.getSystemService(NotificationManager::class.java)
             .createNotificationChannel(channel)
