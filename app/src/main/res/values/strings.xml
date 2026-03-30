@@ -39,6 +39,8 @@
     <string name="permission_battery_optimization_description">To ensure alarms ring reliably even in Doze mode, please disable battery optimization for this app.</string>
     <string name="alarm_alert_no_reference_photo">No reference photo set. Please configure the alarm again.</string>
     <string name="alarm_alert_no_reference_photo_message">No reference photo has been registered. Please use the normal dismiss button.</string>
+    <string name="alarm_alert_overlay_guide">Align with the reference photo</string>
+    <string name="alarm_alert_overlay_alpha_label">Overlay opacity</string>
     <string name="sound_mode_label">Sound Mode</string>
     <string name="sound_mode_sound_and_vibration">Sound &amp; Vibration</string>
     <string name="sound_mode_vibration_only">Vibration Only</string>

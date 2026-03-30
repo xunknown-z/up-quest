@@ -40,6 +40,8 @@
     <string name="permission_battery_optimization_description">도즈 모드에서도 알람이 정확히 울리려면 이 앱의 배터리 최적화를 해제해 주세요.</string>
     <string name="alarm_alert_no_reference_photo">기준 사진이 설정되어 있지 않습니다. 알람을 다시 설정해 주세요.</string>
     <string name="alarm_alert_no_reference_photo_message">기준 사진이 등록되지 않았습니다. 일반 해제 버튼을 사용하세요.</string>
+    <string name="alarm_alert_overlay_guide">기준 사진에 맞춰 촬영하세요</string>
+    <string name="alarm_alert_overlay_alpha_label">오버레이 투명도</string>
     <string name="sound_mode_label">소리 모드</string>
     <string name="sound_mode_sound_and_vibration">소리 + 진동</string>
     <string name="sound_mode_vibration_only">진동만</string>

@@ -9,4 +9,6 @@ sealed interface AlarmAlertEvent {
     data class PhotoVerified(val capturedImagePath: String) : AlarmAlertEvent
     // 사진 인증 실패 후 재시도 — 비교 화면을 닫고 카메라 프리뷰로 복귀
     data object RetryPhotoVerification : AlarmAlertEvent
+    // 기준 사진 오버레이 투명도 변경
+    data class ChangeOverlayAlpha(val alpha: Float) : AlarmAlertEvent
 }
