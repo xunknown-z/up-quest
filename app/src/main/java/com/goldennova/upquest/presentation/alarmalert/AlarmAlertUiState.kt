@@ -13,6 +13,8 @@ data class AlarmAlertUiState(
     val isVerifying: Boolean = false,
     /** 사진 인증 실패 여부 */
     val verificationFailed: Boolean = false,
+    /** 기준 사진 오버레이 투명도 (0.0 = 완전 투명, 1.0 = 완전 불투명) */
+    val overlayAlpha: Float = 0.35f,
 ) {
     /** PhotoVerification 모드이고 참조 사진 경로가 설정되어 있으면 true */
     val hasReferencePhoto: Boolean
