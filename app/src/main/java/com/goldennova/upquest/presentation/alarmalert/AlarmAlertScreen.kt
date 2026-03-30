@@ -77,11 +77,25 @@ fun AlarmAlertScreen(
         ) {
             // 카메라 프리뷰: 사진 모드이고 참조 사진 있고 비교 화면이 아닐 때만 표시
             if (isPhotoMode && uiState.hasReferencePhoto && !isComparingPhotos) {
+                val referencePath =
+                    (alarm?.dismissMode as? DismissMode.PhotoVerification)?.referencePhotoPath
+
                 CameraPreview(
                     onPhotoTaken = { path -> onEvent(AlarmAlertEvent.PhotoVerified(path)) },
                     onCaptureFunctionReady = { captureAction = it },
                     modifier = Modifier.fillMaxSize(),
                 )
+
+                // 기준 사진 오버레이: 카메라 프리뷰 위에 반투명하게 표시하여 구도 가이드 제공
+                if (referencePath != null) {
+                    AsyncImage(
+                        model = File(referencePath),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        alpha = uiState.overlayAlpha,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
 
             when {
