@@ -2,7 +2,6 @@ package com.goldennova.upquest.domain.usecase
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Color
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
