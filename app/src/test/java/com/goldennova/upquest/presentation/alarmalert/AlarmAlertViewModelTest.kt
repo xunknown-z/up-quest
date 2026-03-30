@@ -436,4 +436,40 @@ class AlarmAlertViewModelTest {
         }
 
     // endregion
+
+    // region ChangeOverlayAlpha 이벤트
+
+    @Test
+    fun `ChangeOverlayAlpha 이벤트 처리 시 overlayAlpha가 업데이트된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.ChangeOverlayAlpha(0.6f))
+
+            assertEquals(0.6f, viewModel.uiState.value.overlayAlpha)
+        }
+
+    @Test
+    fun `ChangeOverlayAlpha 이벤트 처리 전 overlayAlpha 기본값은 0_35f이다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            val viewModel = createViewModel(alarmId = 1L)
+
+            assertEquals(0.35f, viewModel.uiState.value.overlayAlpha)
+        }
+
+    @Test
+    fun `ChangeOverlayAlpha 이벤트를 연속으로 처리하면 마지막 값이 반영된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.ChangeOverlayAlpha(0.1f))
+            viewModel.onEvent(AlarmAlertEvent.ChangeOverlayAlpha(0.5f))
+
+            assertEquals(0.5f, viewModel.uiState.value.overlayAlpha)
+        }
+
+    // endregion
 }
