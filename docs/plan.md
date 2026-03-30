@@ -1212,3 +1212,104 @@ interface VibrationPlayer {
 # prod release lint 최종 확인
 ./gradlew lintProdRelease
 ```
+
+---
+
+## Phase 22. 사진 비교 알고리즘 교체 — pHash(지각적 해시) 방식 (prod flavor)
+
+> **배경**: 기존 ML Kit ImageLabeler 기반 Jaccard 유사도 방식은 동일 피사체를 찍어도 신뢰도 임계값(0.7f)을 넘기는 레이블 수가 적어 교집합이 0이 되는 경우가 빈번하여 인증 실패가 반복됨.
+> pHash는 이미지의 저주파 구조(DCT)를 64비트 해시로 압축한 뒤 해밍 거리로 비교하므로 조명·각도 변화에 강인하고 외부 라이브러리 의존성이 없음.
+
+### 22-a. ML Kit 의존성 제거
+
+`gradle/libs.versions.toml`
+- `mlkitImageLabeling` 버전 항목 제거.
+- `mlkit-image-labeling` 라이브러리 항목 제거.
+
+`app/build.gradle.kts`
+- `implementation(libs.mlkit.image.labeling)` 의존성 제거.
+
+### 22-b. pHash 유틸리티 구현
+
+`app/src/prod/java/com/goldennova/upquest/domain/usecase/PHashCalculator.kt`
+
+pHash 계산 절차:
+1. 입력 Bitmap을 **32×32 그레이스케일**로 리사이즈.
+2. 32×32 픽셀 행렬에 **2D DCT(이산 코사인 변환)** 적용.
+3. DCT 결과의 **상위 좌측 8×8 저주파 계수** 64개만 추출.
+4. 64개 계수의 **평균값** 계산 (DC 성분인 [0][0] 제외).
+5. 각 계수가 평균 이상이면 `1`, 미만이면 `0`으로 **64비트 Long 해시** 생성.
+
+```kotlin
+// 시그니처 예시 (구현 세부사항은 별도 결정)
+object PHashCalculator {
+    fun calculate(bitmap: Bitmap): Long
+    fun hammingDistance(a: Long, b: Long): Int = (a xor b).countOneBits()
+}
+```
+
+### 22-c. PHashCalculator 단위 테스트 작성
+
+`app/src/testProd/java/com/goldennova/upquest/domain/usecase/PHashCalculatorTest.kt`
+
+검증 항목:
+- 동일한 Bitmap 입력 시 해밍 거리 = 0.
+- 색상만 반전된 Bitmap 입력 시 해밍 거리 > 임계값.
+- 픽셀 1~2개만 다른 유사 Bitmap 입력 시 해밍 거리 ≤ 임계값.
+- 완전히 다른 피사체 Bitmap 입력 시 해밍 거리 > 임계값.
+- `hammingDistance` 헬퍼: 0 XOR 0 = 0, Long.MAX_VALUE XOR 0 = 63 검증.
+
+### 22-d. PhotoVerificationUseCaseImpl 교체 (prod)
+
+`app/src/prod/java/com/goldennova/upquest/domain/usecase/PhotoVerificationUseCaseImpl.kt`
+
+- 기존 `ImageLabeler` 주입 제거.
+- `PHashCalculator.calculate()` 로 두 이미지 각각 해시 계산.
+- `PHashCalculator.hammingDistance()` 로 해밍 거리 산출.
+- 해밍 거리 ≤ `HAMMING_THRESHOLD`(초기값 `10`) 이면 `true` 반환.
+- Bitmap 디코딩 실패(파일 없음) 시 `false` 반환.
+
+```kotlin
+companion object {
+    // 해밍 거리 허용 상한 (0 = 완전 동일, 64 = 완전 상이)
+    // 10 이하 = 동일 피사체로 판단 (조명·각도 차이 허용)
+    const val HAMMING_THRESHOLD = 10
+}
+```
+
+### 22-e. PhotoVerificationUseCaseImpl 단위 테스트 교체
+
+`app/src/testProd/java/com/goldennova/upquest/domain/usecase/PhotoVerificationUseCaseImplTest.kt`
+
+- 기존 ML Kit `ImageLabeler` MockK stub 전부 제거.
+- `PHashCalculator`를 MockK로 교체하여 해밍 거리 반환값 제어.
+
+검증 항목:
+- `hammingDistance ≤ HAMMING_THRESHOLD` → `verify()` = `true`.
+- `hammingDistance > HAMMING_THRESHOLD` → `verify()` = `false`.
+- `BitmapFactory.decodeFile()` = `null` (파일 없음) → `verify()` = `false`.
+- `hammingDistance = 0` (완전 동일) → `verify()` = `true`.
+- `hammingDistance = HAMMING_THRESHOLD` (경계값) → `verify()` = `true`.
+- `hammingDistance = HAMMING_THRESHOLD + 1` (경계값 초과) → `verify()` = `false`.
+
+### 22-f. Hilt 모듈 정리 (prod)
+
+`app/src/prod/java/com/goldennova/upquest/di/UseCaseModule.kt`
+
+- `provideImageLabeler()` `@Provides` 메서드 제거.
+- `ImageLabeler`, `ImageLabeling`, `ImageLabelerOptions` import 제거.
+- `CONFIDENCE_THRESHOLD` 상수 제거.
+- `bindPhotoVerificationUseCase()` `@Binds` 바인딩은 유지 (인터페이스는 변경 없음).
+
+### 22-g. 빌드 및 테스트 검증
+
+```bash
+# prod flavor 단위 테스트 (pHash 관련 신규·교체 테스트 포함)
+./gradlew testProdDebugUnitTest
+
+# prod release 빌드 — ML Kit 제거 후 컴파일 오류 없음 확인
+./gradlew assembleProdRelease
+
+# lint — 미사용 import·상수 경고 없음 확인
+./gradlew lintProdRelease
+```
