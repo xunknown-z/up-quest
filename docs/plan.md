@@ -1313,3 +1313,110 @@ companion object {
 # lint — 미사용 import·상수 경고 없음 확인
 ./gradlew lintProdRelease
 ```
+
+---
+
+## Phase 23. pHash 임계값 상향 (인증 민감도 완화)
+
+> **배경**: `HAMMING_THRESHOLD = 10`은 동일 파일의 경미한 가공 수준에만 대응하도록 설계된 값이다.
+> 실사용 환경(기상 직후 손 떨림·조명 변화·카메라 위치 차이)에서는 같은 장소를 찍어도
+> 해밍 거리가 15~25 수준으로 나타나 인증 실패가 반복된다.
+> 임계값을 20으로 상향하면 실사용 편차를 수용하면서 완전히 다른 피사체(거리 30+)는 차단할 수 있다.
+
+### 23-a. HAMMING_THRESHOLD 상향
+
+`app/src/prod/java/com/goldennova/upquest/domain/usecase/PhotoVerificationUseCaseImpl.kt`
+- `HAMMING_THRESHOLD` 값을 `10` → `20`으로 변경.
+
+### 23-b. PhotoVerificationUseCaseImplTest 경계값 업데이트
+
+`app/src/testProd/java/com/goldennova/upquest/domain/usecase/PhotoVerificationUseCaseImplTest.kt`
+- `HAMMING_THRESHOLD` 상수를 참조하는 테스트는 구현체 상수를 직접 참조하므로 자동 반영됨.
+- 테스트가 여전히 전부 통과하는지 재실행하여 확인.
+
+### 23-c. PHashCalculatorTest 내 HAMMING_THRESHOLD 상수 동기화
+
+`app/src/testProd/java/com/goldennova/upquest/domain/usecase/PHashCalculatorTest.kt`
+- `companion object`의 `HAMMING_THRESHOLD = 10` → `20`으로 변경.
+
+### 23-d. 빌드 및 테스트 검증
+
+```bash
+./gradlew testProdDebugUnitTest
+./gradlew assembleProdRelease
+```
+
+---
+
+## Phase 24. 촬영 가이드 오버레이 — 기준 사진 반투명 표시
+
+> **배경**: 사용자가 알람 해제 시 등록 당시와 동일한 구도로 재촬영하기 어렵다.
+> 카메라 프리뷰에 기준 사진을 반투명 오버레이로 표시하면 구도를 맞추기 쉬워지고
+> 해밍 거리가 줄어 인증 성공률이 높아진다.
+
+### 24-a. AlarmAlertUiState에 overlayAlpha 필드 추가
+
+`presentation/alarmalert/AlarmAlertContract.kt`
+- `val overlayAlpha: Float = 0.35f` 필드 추가.
+  - 기본값 0.35f: 카메라 프리뷰가 충분히 보이면서 기준 사진 윤곽도 식별 가능한 수준.
+
+### 24-b. AlarmAlertEvent에 오버레이 투명도 조절 이벤트 추가
+
+`presentation/alarmalert/AlarmAlertContract.kt`
+- `data class ChangeOverlayAlpha(val alpha: Float) : AlarmAlertEvent` 추가.
+
+### 24-c. AlarmAlertViewModel — ChangeOverlayAlpha 이벤트 처리
+
+`presentation/alarmalert/AlarmAlertViewModel.kt`
+- `ChangeOverlayAlpha` 이벤트 수신 시 `uiState.overlayAlpha` 업데이트.
+
+### 24-d. AlarmAlertViewModel 단위 테스트 업데이트
+
+`test/.../alarmalert/AlarmAlertViewModelTest.kt`
+- `ChangeOverlayAlpha` 이벤트 처리 후 `overlayAlpha` UiState 변화 검증.
+
+### 24-e. CameraOverlayPreview 컴포저블 작성
+
+`presentation/alarmalert/AlarmAlertScreen.kt` (또는 `presentation/components/CameraOverlayPreview.kt`)
+
+PhotoVerification 카메라 프리뷰 영역을 아래와 같이 구성:
+
+```
+Box {
+    CameraPreview()          // 하단: 실시간 카메라
+    Image(                   // 상단: 기준 사진 오버레이
+        painter = ...,
+        alpha = uiState.overlayAlpha
+    )
+    AlphaSlider(...)         // 오버레이 투명도 슬라이더
+}
+```
+
+- 기준 사진(`referencePhotoPath`)을 Coil로 로드하여 `alpha = overlayAlpha`로 표시.
+- 카메라 프리뷰와 동일한 크기·위치에 겹쳐 표시 (`Modifier.matchParentSize()`).
+
+### 24-f. 오버레이 투명도 슬라이더 UI 추가
+
+`presentation/alarmalert/AlarmAlertScreen.kt`
+- 오버레이 하단에 `Slider` 컴포저블 추가 (범위: 0.0f ~ 0.6f).
+- 값 변경 시 `ChangeOverlayAlpha` 이벤트 발송.
+- `referencePhotoPath == null`이거나 `PhotoVerification` 모드가 아닐 때는 표시하지 않음.
+
+### 24-g. strings.xml 문자열 추가
+
+`res/values/strings.xml` 및 `res/values-ko/strings.xml`
+- `alarm_alert_overlay_guide`: `"기준 사진에 맞춰 촬영하세요"` / `"Align with the reference photo"`
+- `alarm_alert_overlay_alpha_label`: `"오버레이 투명도"` / `"Overlay opacity"`
+
+### 24-h. AlarmAlertScreen UI 테스트 업데이트
+
+`androidTest/.../alarmalert/AlarmAlertScreenTest.kt`
+- PhotoVerification 모드 + `referencePhotoPath` non-null UiState 주입 시 오버레이 슬라이더 표시 검증.
+- `referencePhotoPath == null` UiState 주입 시 슬라이더 미표시 검증.
+
+### 24-i. 빌드 및 테스트 검증
+
+```bash
+./gradlew testDevDebugUnitTest
+./gradlew assembleProdRelease
+```

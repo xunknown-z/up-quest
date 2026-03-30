@@ -17,8 +17,8 @@ class PhotoVerificationUseCaseImpl @Inject constructor() : PhotoVerificationUseC
 
     companion object {
         // 해밍 거리 허용 상한 (0 = 완전 동일, 64 = 완전 상이)
-        // 10 이하 = 동일 피사체로 판단 (조명·각도 차이 허용)
-        const val HAMMING_THRESHOLD = 10
+        // 20 이하 = 동일 피사체로 판단 (실사용 손 떨림·조명·각도 차이 허용)
+        const val HAMMING_THRESHOLD = 20
     }
 
     override suspend fun verify(capturedPath: String, referencePath: String): Boolean {
