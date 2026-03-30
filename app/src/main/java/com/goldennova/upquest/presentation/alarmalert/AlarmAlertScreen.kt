@@ -28,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -131,6 +132,8 @@ fun AlarmAlertScreen(
                     PhotoModeLayout(
                         alarm = alarm,
                         captureAction = captureAction,
+                        overlayAlpha = uiState.overlayAlpha,
+                        onChangeOverlayAlpha = { onEvent(AlarmAlertEvent.ChangeOverlayAlpha(it)) },
                     )
                 }
 
@@ -187,6 +190,8 @@ fun AlarmAlertScreen(
 private fun PhotoModeLayout(
     alarm: Alarm?,
     captureAction: (() -> Unit)?,
+    overlayAlpha: Float,
+    onChangeOverlayAlpha: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var isCardMinimized by remember { mutableStateOf(false) }
@@ -231,15 +236,32 @@ private fun PhotoModeLayout(
             }
         }
 
-        // 촬영 버튼은 항상 하단 고정
-        Button(
-            onClick = { captureAction?.invoke() },
+        // 오버레이 투명도 슬라이더 + 촬영 버튼 — 항상 하단 고정
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(text = stringResource(R.string.alarm_alert_take_photo))
+            Text(
+                text = stringResource(R.string.alarm_alert_overlay_alpha_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Slider(
+                value = overlayAlpha,
+                onValueChange = onChangeOverlayAlpha,
+                valueRange = 0f..0.6f,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Button(
+                onClick = { captureAction?.invoke() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(text = stringResource(R.string.alarm_alert_take_photo))
+            }
         }
     }
 }
