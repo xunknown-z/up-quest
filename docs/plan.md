@@ -1254,10 +1254,10 @@ object PHashCalculator {
 
 검증 항목:
 - 동일한 Bitmap 입력 시 해밍 거리 = 0.
-- 색상만 반전된 Bitmap 입력 시 해밍 거리 > 임계값.
-- 픽셀 1~2개만 다른 유사 Bitmap 입력 시 해밍 거리 ≤ 임계값.
-- 완전히 다른 피사체 Bitmap 입력 시 해밍 거리 > 임계값.
-- `hammingDistance` 헬퍼: 0 XOR 0 = 0, Long.MAX_VALUE XOR 0 = 63 검증.
+- 좌우 반전된 이진 패턴 Bitmap 입력 시 해밍 거리 > 임계값.
+- 수평 그라디언트와 반전 그라디언트 Bitmap 입력 시 해밍 거리 > 임계값.
+- `hammingDistance` 헬퍼: 0 XOR 0 = 0, Long.MAX_VALUE XOR 0 = 63, 전체 비트 상이 시 64 검증.
+- 참고: pHash는 "픽셀 개수가 적을수록 해밍 거리가 작다"를 보장하지 않음. 좌상단 픽셀은 DCT 기여도가 커서 1~2개 변경만으로도 AC 평균이 크게 흔들릴 수 있음.
 
 ### 22-d. PhotoVerificationUseCaseImpl 교체 (prod)
 

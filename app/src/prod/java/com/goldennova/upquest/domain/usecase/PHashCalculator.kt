@@ -1,7 +1,6 @@
 package com.goldennova.upquest.domain.usecase
 
 import android.graphics.Bitmap
-import android.graphics.Color
 import kotlin.math.cos
 import kotlin.math.sqrt
 
@@ -71,8 +70,11 @@ object PHashCalculator {
         return Array(DCT_SIZE) { y ->
             DoubleArray(DCT_SIZE) { x ->
                 val pixel = bitmap.getPixel(x, y)
-                // ITU-R BT.601 휘도 공식
-                0.299 * Color.red(pixel) + 0.587 * Color.green(pixel) + 0.114 * Color.blue(pixel)
+                // ITU-R BT.601 휘도 공식 — Color.* 정적 메서드 대신 직접 비트 연산으로 추출
+                val r = (pixel shr 16) and 0xFF
+                val g = (pixel shr 8) and 0xFF
+                val b = pixel and 0xFF
+                0.299 * r + 0.587 * g + 0.114 * b
             }
         }
     }
