@@ -159,7 +159,7 @@ class PHashCalculatorTest {
 
     companion object {
         // PhotoVerificationUseCaseImpl.HAMMING_THRESHOLD 와 동일한 값
-        private const val HAMMING_THRESHOLD = 10
+        private const val HAMMING_THRESHOLD = 20
 
         // Color.* 정적 메서드는 Android 스텁 환경에서 0을 반환하므로 raw ARGB 값으로 직접 정의
         private const val WHITE = 0xFFFFFFFF.toInt() // R=255, G=255, B=255
