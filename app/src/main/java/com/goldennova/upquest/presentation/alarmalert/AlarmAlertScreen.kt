@@ -91,7 +91,7 @@ fun AlarmAlertScreen(
                 if (referencePath != null) {
                     AsyncImage(
                         model = File(referencePath),
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.alarm_alert_overlay_guide),
                         contentScale = ContentScale.Crop,
                         alpha = uiState.overlayAlpha,
                         modifier = Modifier.fillMaxSize(),
