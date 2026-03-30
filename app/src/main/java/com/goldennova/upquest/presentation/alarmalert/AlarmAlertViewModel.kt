@@ -49,6 +49,7 @@ class AlarmAlertViewModel @Inject constructor(
             AlarmAlertEvent.TakeVerificationPhoto -> Unit
             is AlarmAlertEvent.PhotoVerified -> onPhotoVerified(event.capturedImagePath)
             AlarmAlertEvent.RetryPhotoVerification -> retryPhotoVerification()
+            is AlarmAlertEvent.ChangeOverlayAlpha -> _uiState.update { it.copy(overlayAlpha = event.alpha) }
         }
     }
 
