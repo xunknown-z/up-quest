@@ -211,19 +211,15 @@ class AlarmAlertViewModelTest {
         }
 
     @Test
-    fun `인증 실패 시 ShowError SideEffect가 방출된다`() =
+    fun `인증 실패 시 verificationFailed가 true가 된다`() =
         runTest(mainDispatcherExtension.testDispatcher) {
             coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
             coEvery { photoVerificationUseCase.verify(any(), any()) } returns false
             val viewModel = createViewModel(alarmId = 1L)
-            val effects = mutableListOf<AlarmAlertSideEffect>()
-            val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
 
             viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
 
-            val effect = effects.firstOrNull() as? AlarmAlertSideEffect.ShowError
-            assertNotNull(effect)
-            job.cancel()
+            assertTrue(viewModel.uiState.value.verificationFailed)
         }
 
     @Test
@@ -236,6 +232,34 @@ class AlarmAlertViewModelTest {
             viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
 
             assertFalse(viewModel.uiState.value.isDismissed)
+        }
+
+    @Test
+    fun `PhotoVerified 이벤트 처리 시 capturedImagePath가 즉시 설정된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            coEvery { photoVerificationUseCase.verify(any(), any()) } returns true
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            // 성공 후 dismissed 처리되지만 capturedImagePath가 설정됐음을 confirm
+            assertNotNull(viewModel.uiState.value.capturedImagePath)
+        }
+
+    @Test
+    fun `RetryPhotoVerification 이벤트 처리 시 비교 상태가 초기화된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            coEvery { photoVerificationUseCase.verify(any(), any()) } returns false
+            val viewModel = createViewModel(alarmId = 1L)
+            viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
+
+            viewModel.onEvent(AlarmAlertEvent.RetryPhotoVerification)
+
+            assertNull(viewModel.uiState.value.capturedImagePath)
+            assertFalse(viewModel.uiState.value.verificationFailed)
+            assertFalse(viewModel.uiState.value.isVerifying)
         }
 
     @Test
@@ -409,6 +433,42 @@ class AlarmAlertViewModelTest {
             viewModel.onEvent(AlarmAlertEvent.PhotoVerified("/storage/captured.jpg"))
 
             assertFalse(viewModel.uiState.value.isDismissed)
+        }
+
+    // endregion
+
+    // region ChangeOverlayAlpha 이벤트
+
+    @Test
+    fun `ChangeOverlayAlpha 이벤트 처리 시 overlayAlpha가 업데이트된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.ChangeOverlayAlpha(0.6f))
+
+            assertEquals(0.6f, viewModel.uiState.value.overlayAlpha)
+        }
+
+    @Test
+    fun `ChangeOverlayAlpha 이벤트 처리 전 overlayAlpha 기본값은 0_35f이다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            val viewModel = createViewModel(alarmId = 1L)
+
+            assertEquals(0.35f, viewModel.uiState.value.overlayAlpha)
+        }
+
+    @Test
+    fun `ChangeOverlayAlpha 이벤트를 연속으로 처리하면 마지막 값이 반영된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { getAlarmByIdUseCase(1L) } returns Result.success(createPhotoAlarm())
+            val viewModel = createViewModel(alarmId = 1L)
+
+            viewModel.onEvent(AlarmAlertEvent.ChangeOverlayAlpha(0.1f))
+            viewModel.onEvent(AlarmAlertEvent.ChangeOverlayAlpha(0.5f))
+
+            assertEquals(0.5f, viewModel.uiState.value.overlayAlpha)
         }
 
     // endregion

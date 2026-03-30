@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.core.os.bundleOf
 import androidx.lifecycle.SavedStateHandle
 import com.goldennova.upquest.domain.model.Alarm
+import com.goldennova.upquest.domain.model.AlarmSoundMode
 import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.domain.usecase.DeleteAlarmUseCase
 import com.goldennova.upquest.domain.usecase.GetAlarmByIdUseCase
@@ -244,6 +245,46 @@ class AlarmDetailViewModelTest {
 
     // endregion
 
+    // region Event — ChangeSoundMode
+
+    @Test
+    fun `ChangeSoundMode 이벤트 처리 시 soundMode가 업데이트된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel()
+
+            viewModel.onEvent(AlarmDetailEvent.ChangeSoundMode(AlarmSoundMode.VIBRATION_ONLY))
+
+            assertEquals(AlarmSoundMode.VIBRATION_ONLY, viewModel.uiState.value.soundMode)
+        }
+
+    // endregion
+
+    // region Event — ChangeRingtone
+
+    @Test
+    fun `ChangeRingtone 이벤트 처리 시 ringtoneUri가 업데이트된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val uri = "content://media/internal/audio/media/12"
+            val viewModel = createViewModel()
+
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(uri))
+
+            assertEquals(uri, viewModel.uiState.value.ringtoneUri)
+        }
+
+    @Test
+    fun `ChangeRingtone 이벤트에 null 전달 시 ringtoneUri가 null이 된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel()
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone("content://media/internal/audio/media/12"))
+
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(null))
+
+            assertEquals(null, viewModel.uiState.value.ringtoneUri)
+        }
+
+    // endregion
+
     // region Event — Save
 
     @Test
@@ -254,7 +295,7 @@ class AlarmDetailViewModelTest {
             val effects = mutableListOf<AlarmDetailSideEffect>()
             val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
 
-            viewModel.onEvent(AlarmDetailEvent.Save)
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
 
             assertTrue(effects.contains(AlarmDetailSideEffect.NavigateBack))
             job.cancel()
@@ -268,7 +309,7 @@ class AlarmDetailViewModelTest {
             val effects = mutableListOf<AlarmDetailSideEffect>()
             val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
 
-            viewModel.onEvent(AlarmDetailEvent.Save)
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
 
             val effect = effects.firstOrNull() as? AlarmDetailSideEffect.ShowError
             assertEquals("저장 실패", effect?.message)
@@ -282,7 +323,7 @@ class AlarmDetailViewModelTest {
             coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
             val viewModel = createViewModel(alarmId = -1L)
 
-            viewModel.onEvent(AlarmDetailEvent.Save)
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
 
             coVerify { saveAlarmUseCase(match { it.id == 0L }) }
         }
@@ -295,9 +336,86 @@ class AlarmDetailViewModelTest {
             coEvery { saveAlarmUseCase(any()) } returns Result.success(5L)
             val viewModel = createViewModel(alarmId = 5L)
 
-            viewModel.onEvent(AlarmDetailEvent.Save)
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
 
             coVerify { saveAlarmUseCase(match { it.id == 5L }) }
+        }
+
+    @Test
+    fun `라벨이 비어 있을 때 Save 시 defaultLabel이 사용된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
+            val viewModel = createViewModel(alarmId = -1L)
+            // 라벨을 입력하지 않은 상태(기본값 빈 문자열)로 저장
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            coVerify { saveAlarmUseCase(match { it.label == "알람" }) }
+        }
+
+    @Test
+    fun `Save 시 soundMode가 saveAlarmUseCase 파라미터에 포함된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
+            val viewModel = createViewModel(alarmId = -1L)
+            viewModel.onEvent(AlarmDetailEvent.ChangeSoundMode(AlarmSoundMode.VIBRATION_ONLY))
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            coVerify { saveAlarmUseCase(match { it.soundMode == AlarmSoundMode.VIBRATION_ONLY }) }
+        }
+
+    @Test
+    fun `Save 시 ringtoneUri가 saveAlarmUseCase 파라미터에 포함된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val uri = "content://media/internal/audio/media/12"
+            coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
+            val viewModel = createViewModel(alarmId = -1L)
+            viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(uri))
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            coVerify { saveAlarmUseCase(match { it.ringtoneUri == uri }) }
+        }
+
+    @Test
+    fun `사진 인증 모드에서 기준 사진 없이 Save 시 ShowError SideEffect가 방출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel(alarmId = -1L)
+            // 사진 경로 없이 사진 인증 모드 선택
+            viewModel.onEvent(AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification(null)))
+            val effects = mutableListOf<AlarmDetailSideEffect>()
+            val job = launch { viewModel.sideEffect.collect { effects.add(it) } }
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            assertTrue(effects.firstOrNull() is AlarmDetailSideEffect.ShowError)
+            job.cancel()
+        }
+
+    @Test
+    fun `사진 인증 모드에서 기준 사진 없이 Save 시 saveAlarmUseCase가 호출되지 않는다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            val viewModel = createViewModel(alarmId = -1L)
+            viewModel.onEvent(AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification(null)))
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            coVerify(exactly = 0) { saveAlarmUseCase(any()) }
+        }
+
+    @Test
+    fun `사진 인증 모드에서 기준 사진이 등록된 경우 Save 시 saveAlarmUseCase가 호출된다`() =
+        runTest(mainDispatcherExtension.testDispatcher) {
+            coEvery { saveAlarmUseCase(any()) } returns Result.success(1L)
+            val viewModel = createViewModel(alarmId = -1L)
+            viewModel.onEvent(
+                AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification("/storage/photo.jpg"))
+            )
+
+            viewModel.onEvent(AlarmDetailEvent.Save("알람"))
+
+            coVerify(exactly = 1) { saveAlarmUseCase(any()) }
         }
 
     // endregion

@@ -1,13 +1,16 @@
 package com.goldennova.upquest.presentation.alarmdetail
 
+import android.media.RingtoneManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -37,11 +40,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import coil.compose.AsyncImage
+import java.io.File
 import com.goldennova.upquest.R
+import com.goldennova.upquest.domain.model.AlarmSoundMode
 import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.presentation.theme.UpQuestTheme
 import java.time.DayOfWeek
@@ -56,12 +66,14 @@ fun AlarmDetailScreen(
     isNewAlarm: Boolean,
     onNavigateBack: () -> Unit,
     onNavigateToPhotoSetup: () -> Unit,
+    onPickRingtone: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     modifier: Modifier = Modifier,
 ) {
     val title = stringResource(
         if (isNewAlarm) R.string.alarm_detail_title_new else R.string.alarm_detail_title_edit
     )
+    val defaultLabel = stringResource(R.string.alarm_label_hint)
 
     Scaffold(
         modifier = modifier,
@@ -83,7 +95,7 @@ fun AlarmDetailScreen(
             AlarmDetailBottomBar(
                 isNewAlarm = isNewAlarm,
                 isLoading = uiState.isLoading,
-                onSave = { onEvent(AlarmDetailEvent.Save) },
+                onSave = { onEvent(AlarmDetailEvent.Save(defaultLabel)) },
                 onDelete = { onEvent(AlarmDetailEvent.Delete) },
             )
         },
@@ -102,6 +114,7 @@ fun AlarmDetailScreen(
                 uiState = uiState,
                 onEvent = onEvent,
                 onNavigateToPhotoSetup = onNavigateToPhotoSetup,
+                onPickRingtone = onPickRingtone,
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -114,6 +127,7 @@ private fun AlarmDetailForm(
     uiState: AlarmDetailUiState,
     onEvent: (AlarmDetailEvent) -> Unit,
     onNavigateToPhotoSetup: () -> Unit,
+    onPickRingtone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val timePickerState = rememberTimePickerState(
@@ -157,6 +171,19 @@ private fun AlarmDetailForm(
             onChangeDismissMode = { onEvent(AlarmDetailEvent.ChangeDismissMode(it)) },
             onNavigateToPhotoSetup = onNavigateToPhotoSetup,
         )
+
+        SoundModeSection(
+            soundMode = uiState.soundMode,
+            onChangeSoundMode = { onEvent(AlarmDetailEvent.ChangeSoundMode(it)) },
+        )
+
+        // 진동만 모드에서는 알람음 선택 불필요
+        if (uiState.soundMode == AlarmSoundMode.SOUND_AND_VIBRATION) {
+            RingtoneRow(
+                ringtoneUri = uiState.ringtoneUri,
+                onPickRingtone = onPickRingtone,
+            )
+        }
     }
 }
 
@@ -230,35 +257,144 @@ private fun DismissModeSection(
                 modifier = Modifier.padding(start = 4.dp),
             )
         }
-        // TODO 사진 기능 완성되면 추가
-//        Row(
-//            verticalAlignment = Alignment.CenterVertically,
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .selectable(
-//                    selected = dismissMode is DismissMode.PhotoVerification,
-//                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification(null)) },
-//                    role = Role.RadioButton,
-//                ),
-//        ) {
-//            RadioButton(
-//                selected = dismissMode is DismissMode.PhotoVerification,
-//                onClick = null,
-//            )
-//            Text(
-//                text = stringResource(R.string.dismiss_photo),
-//                modifier = Modifier.padding(start = 4.dp),
-//            )
-//        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectable(
+                    selected = dismissMode is DismissMode.PhotoVerification,
+                    onClick = { onChangeDismissMode(DismissMode.PhotoVerification(null)) },
+                    role = Role.RadioButton,
+                ),
+        ) {
+            RadioButton(
+                selected = dismissMode is DismissMode.PhotoVerification,
+                onClick = null,
+            )
+            Text(
+                text = stringResource(R.string.dismiss_photo),
+                modifier = Modifier.padding(start = 4.dp),
+            )
+        }
         if (dismissMode is DismissMode.PhotoVerification) {
+            val photoPath = dismissMode.referencePhotoPath
+            if (photoPath != null) {
+                // 기준 사진 미리보기
+                AsyncImage(
+                    model = File(photoPath),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(top = 4.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                )
+            } else {
+                // 사진 미등록 시 경고 힌트
+                Text(
+                    text = stringResource(R.string.photo_required_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
             Button(
                 onClick = onNavigateToPhotoSetup,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp),
             ) {
-                Text(text = stringResource(R.string.photo_setup_title))
+                Text(
+                    text = stringResource(
+                        if (photoPath != null) R.string.photo_reference_change
+                        else R.string.photo_setup_title,
+                    ),
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun SoundModeSection(
+    soundMode: AlarmSoundMode,
+    onChangeSoundMode: (AlarmSoundMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.sound_mode_label),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        AlarmSoundMode.entries.forEach { mode ->
+            val label = stringResource(
+                when (mode) {
+                    AlarmSoundMode.SOUND_AND_VIBRATION -> R.string.sound_mode_sound_and_vibration
+                    AlarmSoundMode.VIBRATION_ONLY -> R.string.sound_mode_vibration_only
+                }
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectable(
+                        selected = soundMode == mode,
+                        onClick = { onChangeSoundMode(mode) },
+                        role = Role.RadioButton,
+                    ),
+            ) {
+                RadioButton(
+                    selected = soundMode == mode,
+                    onClick = null,
+                )
+                Text(
+                    text = label,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RingtoneRow(
+    ringtoneUri: String?,
+    onPickRingtone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    // URI가 변경될 때마다 링톤 표시 이름을 조회
+    val ringtoneName = remember(ringtoneUri) {
+        ringtoneUri?.let { uriString ->
+            RingtoneManager.getRingtone(context, uriString.toUri())?.getTitle(context)
+        }
+    }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.ringtone_label),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                // URI가 null이거나 이름 조회 실패 시 "기본 알람음" 표시
+                text = ringtoneName ?: stringResource(R.string.ringtone_default),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedButton(onClick = onPickRingtone) {
+            Text(text = stringResource(R.string.ringtone_change))
         }
     }
 }
@@ -312,6 +448,7 @@ private fun AlarmDetailScreenNewPreview() {
             isNewAlarm = true,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }
@@ -332,6 +469,7 @@ private fun AlarmDetailScreenEditPreview() {
             isNewAlarm = false,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }
@@ -346,6 +484,7 @@ private fun AlarmDetailScreenLoadingPreview() {
             isNewAlarm = false,
             onNavigateBack = {},
             onNavigateToPhotoSetup = {},
+            onPickRingtone = {},
         )
     }
 }

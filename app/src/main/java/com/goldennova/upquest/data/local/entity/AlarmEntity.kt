@@ -21,4 +21,6 @@ data class AlarmEntity(
     val isEnabled: Boolean,
     val dismissMode: String,
     val referencePhotoPath: String?,
+    val ringtoneUri: String? = null, // null = 시스템 기본 알람음
+    val soundMode: String = "SOUND_AND_VIBRATION",
 )

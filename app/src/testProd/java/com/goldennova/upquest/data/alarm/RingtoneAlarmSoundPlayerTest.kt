@@ -1,12 +1,14 @@
 package com.goldennova.upquest.data.alarm
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
 import io.mockk.every
 import io.mockk.justRun
 import io.mockk.mockk
+import io.mockk.mockkConstructor
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
@@ -38,6 +40,14 @@ class RingtoneAlarmSoundPlayerTest {
         every { RingtoneManager.getRingtone(any(), any()) } returns mockRingtone
         justRun { mockRingtone.play() }
         justRun { mockRingtone.stop() }
+
+        // AudioAttributes.Builder 체인 목킹 — Android 프레임워크 클래스는 JVM 테스트에서 미지원
+        val mockAudioAttributes: AudioAttributes = mockk()
+        mockkConstructor(AudioAttributes.Builder::class)
+        every { anyConstructed<AudioAttributes.Builder>().setUsage(any()) } returns mockk(relaxed = true)
+        every { anyConstructed<AudioAttributes.Builder>().setContentType(any()) } returns mockk(relaxed = true)
+        every { anyConstructed<AudioAttributes.Builder>().build() } returns mockAudioAttributes
+        justRun { mockRingtone.audioAttributes = any() }
 
         player = RingtoneAlarmSoundPlayer(context)
     }

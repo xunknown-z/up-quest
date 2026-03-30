@@ -48,6 +48,8 @@ class AlarmAlertViewModel @Inject constructor(
             // 촬영 트리거는 UI(CameraPreview)가 직접 처리하므로 ViewModel은 관여하지 않는다
             AlarmAlertEvent.TakeVerificationPhoto -> Unit
             is AlarmAlertEvent.PhotoVerified -> onPhotoVerified(event.capturedImagePath)
+            AlarmAlertEvent.RetryPhotoVerification -> retryPhotoVerification()
+            is AlarmAlertEvent.ChangeOverlayAlpha -> _uiState.update { it.copy(overlayAlpha = event.alpha) }
         }
     }
 
@@ -70,25 +72,47 @@ class AlarmAlertViewModel @Inject constructor(
         }
     }
 
-    // PhotoVerification 모드: 사진 비교 후 성공 시 해제, 실패 시 오류 전달
+    // PhotoVerification 모드: 비교 화면으로 즉시 전환 후 사진 검증 수행
     private fun onPhotoVerified(capturedImagePath: String) {
         val alarm = _uiState.value.alarm ?: return
         val mode = alarm.dismissMode as? DismissMode.PhotoVerification ?: return
+
+        // 촬영 직후 비교 화면으로 전환
+        _uiState.update {
+            it.copy(
+                capturedImagePath = capturedImagePath,
+                isVerifying = true,
+                verificationFailed = false,
+            )
+        }
+
         viewModelScope.launch {
             val referencePath = mode.referencePhotoPath
             if (referencePath == null) {
+                _uiState.update { it.copy(isVerifying = false) }
                 _sideEffect.emit(AlarmAlertSideEffect.ShowError("기준 사진이 설정되어 있지 않습니다."))
                 return@launch
             }
-            val verified =
-                photoVerificationUseCase.verify(capturedImagePath, referencePath)
+            val verified = photoVerificationUseCase.verify(capturedImagePath, referencePath)
             if (verified) {
                 handleAlarmDismiss(alarm)
-                _uiState.update { it.copy(isPhotoVerified = true, isDismissed = true) }
+                _uiState.update { it.copy(isPhotoVerified = true, isDismissed = true, isVerifying = false) }
                 _sideEffect.emit(AlarmAlertSideEffect.DismissAlarm)
             } else {
-                _sideEffect.emit(AlarmAlertSideEffect.ShowError("사진 인증에 실패했습니다. 다시 시도해 주세요."))
+                // 실패 시 비교 화면에서 재시도 버튼 표시
+                _uiState.update { it.copy(isVerifying = false, verificationFailed = true) }
             }
+        }
+    }
+
+    // 인증 실패 후 재시도 — 비교 화면 초기화하여 카메라 프리뷰로 복귀
+    private fun retryPhotoVerification() {
+        _uiState.update {
+            it.copy(
+                capturedImagePath = null,
+                isVerifying = false,
+                verificationFailed = false,
+            )
         }
     }
 

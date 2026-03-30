@@ -1,13 +1,7 @@
 package com.goldennova.upquest.presentation.photosetup
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
-import com.goldennova.upquest.domain.model.DismissMode
-import com.goldennova.upquest.domain.usecase.GetAlarmByIdUseCase
-import com.goldennova.upquest.domain.usecase.SaveAlarmUseCase
-import com.goldennova.upquest.presentation.navigation.PhotoSetup
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,13 +14,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class PhotoSetupViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
-    private val getAlarmByIdUseCase: GetAlarmByIdUseCase,
-    private val saveAlarmUseCase: SaveAlarmUseCase,
-) : ViewModel() {
-
-    private val alarmId: Long = savedStateHandle.toRoute<PhotoSetup>().alarmId
+class PhotoSetupViewModel @Inject constructor() : ViewModel() {
 
     private val _uiState = MutableStateFlow(PhotoSetupUiState())
     val uiState: StateFlow<PhotoSetupUiState> = _uiState.asStateFlow()
@@ -55,16 +43,12 @@ class PhotoSetupViewModel @Inject constructor(
         _uiState.update { it.copy(capturedImagePath = null, isPhotoTaken = false) }
     }
 
-    // 확인: 알람의 referencePhotoPath를 업데이트하고 뒤로 이동
+    // 확인: 촬영된 사진 경로를 AlarmDetail로 전달하고 뒤로 이동
+    // 알람 저장은 AlarmDetail의 저장 버튼에서 일괄 처리한다
     private fun confirm() {
         val path = _uiState.value.capturedImagePath ?: return
         viewModelScope.launch {
-            getAlarmByIdUseCase(alarmId)
-                .onSuccess { alarm ->
-                    if (alarm == null) return@onSuccess
-                    saveAlarmUseCase(alarm.copy(dismissMode = DismissMode.PhotoVerification(path)))
-                        .onSuccess { _sideEffect.emit(PhotoSetupSideEffect.NavigateBackWithPath(path)) }
-                }
+            _sideEffect.emit(PhotoSetupSideEffect.NavigateBackWithPath(path))
         }
     }
 }

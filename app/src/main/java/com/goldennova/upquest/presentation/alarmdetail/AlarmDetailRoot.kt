@@ -3,6 +3,7 @@ package com.goldennova.upquest.presentation.alarmdetail
 import android.Manifest
 import android.app.AlarmManager
 import android.app.NotificationManager
+import android.os.PowerManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -20,6 +21,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.goldennova.upquest.R
+import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.presentation.components.PermissionRationaleDialog
 import com.goldennova.upquest.presentation.components.PermissionSettingsDialog
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -33,11 +35,25 @@ fun AlarmDetailRoot(
     alarmId: Long = -1L,
     onNavigateBack: () -> Unit = {},
     onNavigateToPhotoSetup: (Long) -> Unit = {},
+    photoPathResult: String? = null,
+    onPhotoPathResultConsumed: () -> Unit = {},
     viewModel: AlarmDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+
+    // PhotoSetup에서 전달된 사진 경로를 dismissMode에 반영
+    LaunchedEffect(photoPathResult) {
+        if (photoPathResult != null) {
+            viewModel.onEvent(
+                AlarmDetailEvent.ChangeDismissMode(DismissMode.PhotoVerification(photoPathResult))
+            )
+            onPhotoPathResultConsumed()
+        }
+    }
+
+    var showRingtonePicker by remember { mutableStateOf(false) }
 
     // SideEffect 수집 — 내비게이션 및 스낵바 처리
     LaunchedEffect(Unit) {
@@ -92,7 +108,17 @@ fun AlarmDetailRoot(
         }
     }
 
-    // ③ USE_FULL_SCREEN_INTENT 권한 처리 (API 34+, 특수 권한)
+    // ③ 배터리 최적화 예외 처리 — 도즈 모드에서 알람 신뢰성 보장
+    val powerManager = remember { context.getSystemService(PowerManager::class.java) }
+    var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            showBatteryOptimizationDialog = true
+        }
+    }
+
+    // ④ USE_FULL_SCREEN_INTENT 권한 처리 (API 34+, 특수 권한)
     // 미허용 시 잠금 화면에서 알람 화면이 표시되지 않으므로 설정으로 안내한다
     val notificationManager = remember { context.getSystemService(NotificationManager::class.java) }
 
@@ -130,6 +156,13 @@ fun AlarmDetailRoot(
             if (alarmManager?.canScheduleExactAlarms() == false && !showExactAlarmSettingsDialog) {
                 showExactAlarmSettingsDialog = true
             }
+        }
+
+        // 배터리 최적화 재확인 — 허용됐으면 다이얼로그 닫힘
+        if (powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            showBatteryOptimizationDialog = false
+        } else if (!showBatteryOptimizationDialog) {
+            showBatteryOptimizationDialog = true
         }
 
         // USE_FULL_SCREEN_INTENT 재확인 — 허용됐으면 다이얼로그 닫힘
@@ -189,6 +222,22 @@ fun AlarmDetailRoot(
         )
     }
 
+    // 배터리 최적화 — 시스템 설정 안내 다이얼로그
+    if (showBatteryOptimizationDialog) {
+        PermissionSettingsDialog(
+            title = context.getString(R.string.permission_battery_optimization_title),
+            description = context.getString(R.string.permission_battery_optimization_description),
+            onGoToSettings = {
+                showBatteryOptimizationDialog = false
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+                context.startActivity(intent)
+            },
+            onDismiss = { showBatteryOptimizationDialog = false },
+        )
+    }
+
     // SCHEDULE_EXACT_ALARM — 시스템 설정 안내 다이얼로그
     if (showExactAlarmSettingsDialog) {
         PermissionSettingsDialog(
@@ -213,6 +262,19 @@ fun AlarmDetailRoot(
         isNewAlarm = alarmId == -1L,
         onNavigateBack = onNavigateBack,
         onNavigateToPhotoSetup = { onNavigateToPhotoSetup(alarmId) },
+        onPickRingtone = { showRingtonePicker = true },
         snackbarHostState = snackbarHostState,
     )
+
+    // 커스텀 링톤 피커 — USAGE_ALARM으로 재생해 진동·무음 모드에서도 소리 확인 가능
+    if (showRingtonePicker) {
+        AlarmRingtonePicker(
+            currentUri = uiState.ringtoneUri,
+            onConfirm = { uri ->
+                showRingtonePicker = false
+                viewModel.onEvent(AlarmDetailEvent.ChangeRingtone(uri))
+            },
+            onDismiss = { showRingtonePicker = false },
+        )
+    }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.goldennova.upquest.domain.model.Alarm
+import com.goldennova.upquest.domain.model.DismissMode
 import com.goldennova.upquest.domain.usecase.DeleteAlarmUseCase
 import com.goldennova.upquest.domain.usecase.GetAlarmByIdUseCase
 import com.goldennova.upquest.domain.usecase.SaveAlarmUseCase
@@ -23,7 +24,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AlarmDetailViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val getAlarmByIdUseCase: GetAlarmByIdUseCase,
     private val saveAlarmUseCase: SaveAlarmUseCase,
     private val deleteAlarmUseCase: DeleteAlarmUseCase,
@@ -51,7 +52,9 @@ class AlarmDetailViewModel @Inject constructor(
             is AlarmDetailEvent.ChangeLabel -> _uiState.update { it.copy(label = event.label) }
             is AlarmDetailEvent.ToggleDay -> toggleDay(event.day)
             is AlarmDetailEvent.ChangeDismissMode -> _uiState.update { it.copy(dismissMode = event.mode) }
-            is AlarmDetailEvent.Save -> save()
+            is AlarmDetailEvent.ChangeRingtone -> _uiState.update { it.copy(ringtoneUri = event.uri) }
+            is AlarmDetailEvent.ChangeSoundMode -> _uiState.update { it.copy(soundMode = event.mode) }
+            is AlarmDetailEvent.Save -> save(event.defaultLabel)
             is AlarmDetailEvent.Delete -> delete()
         }
     }
@@ -71,6 +74,8 @@ class AlarmDetailViewModel @Inject constructor(
                                 repeatDays = alarm.repeatDays,
                                 label = alarm.label,
                                 dismissMode = alarm.dismissMode,
+                                ringtoneUri = alarm.ringtoneUri,
+                                soundMode = alarm.soundMode,
                             )
                         }
                     } else {
@@ -95,17 +100,30 @@ class AlarmDetailViewModel @Inject constructor(
     }
 
     // 알람 저장 — 신규면 insert, 수정이면 update
-    private fun save() {
+    private fun save(defaultLabel: String) {
         viewModelScope.launch {
             val state = _uiState.value
+
+            // 사진 인증 모드인데 기준 사진이 없으면 저장 차단
+            if (state.dismissMode is DismissMode.PhotoVerification &&
+                state.dismissMode.referencePhotoPath == null
+            ) {
+                _sideEffect.emit(
+                    AlarmDetailSideEffect.ShowError("사진 인증 모드에서는 기준 사진을 등록해야 합니다.")
+                )
+                return@launch
+            }
+
             val alarm = Alarm(
                 id = if (isNewAlarm) 0L else alarmId,
                 hour = state.hour,
                 minute = state.minute,
                 repeatDays = state.repeatDays,
-                label = state.label,
+                label = state.label.ifBlank { defaultLabel }, // 빈 라벨이면 기본값 사용
                 isEnabled = true,
                 dismissMode = state.dismissMode,
+                ringtoneUri = state.ringtoneUri,
+                soundMode = state.soundMode,
             )
             _uiState.update { it.copy(isLoading = true) }
             saveAlarmUseCase(alarm)

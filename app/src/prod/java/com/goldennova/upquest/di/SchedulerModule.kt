@@ -29,5 +29,5 @@ object SchedulerModule {
     @Singleton
     fun provideVibrationPlayer(
         @ApplicationContext context: Context,
-    ): VibrationPlayer = SystemVibrationPlayer(context, Build.VERSION.SDK_INT)
+    ): VibrationPlayer = SystemVibrationPlayer(context)
 }

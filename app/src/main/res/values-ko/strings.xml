@@ -36,5 +36,24 @@
     <string name="notification_channel_alarm_name">알람</string>
     <string name="permission_full_screen_intent_title">전체 화면 알림 권한 필요</string>
     <string name="permission_full_screen_intent_description">잠금 화면에서 알람을 표시하려면 설정에서 전체 화면 알림을 허용해 주세요.</string>
+    <string name="permission_battery_optimization_title">배터리 최적화 예외 설정 필요</string>
+    <string name="permission_battery_optimization_description">도즈 모드에서도 알람이 정확히 울리려면 이 앱의 배터리 최적화를 해제해 주세요.</string>
     <string name="alarm_alert_no_reference_photo">기준 사진이 설정되어 있지 않습니다. 알람을 다시 설정해 주세요.</string>
+    <string name="alarm_alert_no_reference_photo_message">기준 사진이 등록되지 않았습니다. 일반 해제 버튼을 사용하세요.</string>
+    <string name="alarm_alert_overlay_guide">기준 사진에 맞춰 촬영하세요</string>
+    <string name="alarm_alert_overlay_alpha_label">오버레이 투명도</string>
+    <string name="sound_mode_label">소리 모드</string>
+    <string name="sound_mode_sound_and_vibration">소리 + 진동</string>
+    <string name="sound_mode_vibration_only">진동만</string>
+    <string name="ringtone_picker_title">알람음 선택</string>
+    <string name="ringtone_label">알람음</string>
+    <string name="ringtone_default">기본 알람음</string>
+    <string name="ringtone_change">변경</string>
+    <string name="photo_required_hint">저장하려면 기준 사진을 등록해야 합니다.</string>
+    <string name="photo_reference_change">사진 변경</string>
+    <string name="photo_comparison_reference">등록된 사진</string>
+    <string name="photo_comparison_captured">현재 사진</string>
+    <string name="photo_comparison_analyzing">사진 분석 중…</string>
+    <string name="photo_comparison_failed">인증 실패. 다시 시도해 주세요.</string>
+    <string name="photo_comparison_retry">다시 시도</string>
 </resources>
