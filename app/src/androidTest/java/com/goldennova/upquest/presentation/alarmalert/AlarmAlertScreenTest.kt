@@ -2,6 +2,7 @@ package com.goldennova.upquest.presentation.alarmalert
 
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -131,6 +132,64 @@ class AlarmAlertScreenTest {
         }
 
         composeTestRule.onNodeWithText(dismissText).assertDoesNotExist()
+    }
+
+    // endregion
+
+    // region 오버레이 슬라이더
+
+    @Test
+    fun PhotoVerification_모드에서_referencePhotoPath가_non_null이면_오버레이_슬라이더가_표시된다() {
+        var alphaLabel = ""
+
+        composeTestRule.setContent {
+            alphaLabel = stringResource(R.string.alarm_alert_overlay_alpha_label)
+            AlarmAlertScreen(
+                uiState = AlarmAlertUiState(alarm = createPhotoAlarm()),
+                onEvent = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText(alphaLabel).assertIsDisplayed()
+    }
+
+    @Test
+    fun Normal_모드에서는_오버레이_슬라이더가_표시되지_않는다() {
+        var alphaLabel = ""
+
+        composeTestRule.setContent {
+            alphaLabel = stringResource(R.string.alarm_alert_overlay_alpha_label)
+            AlarmAlertScreen(
+                uiState = AlarmAlertUiState(alarm = createNormalAlarm()),
+                onEvent = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText(alphaLabel).assertDoesNotExist()
+    }
+
+    @Test
+    fun PhotoVerification_모드에서_referencePhotoPath가_null이면_오버레이_슬라이더가_표시되지_않는다() {
+        var alphaLabel = ""
+        val noRefAlarm = Alarm(
+            id = 3L,
+            hour = 9,
+            minute = 0,
+            repeatDays = emptySet(),
+            label = "기준사진 없는 알람",
+            isEnabled = true,
+            dismissMode = DismissMode.PhotoVerification(referencePhotoPath = null),
+        )
+
+        composeTestRule.setContent {
+            alphaLabel = stringResource(R.string.alarm_alert_overlay_alpha_label)
+            AlarmAlertScreen(
+                uiState = AlarmAlertUiState(alarm = noRefAlarm),
+                onEvent = {},
+            )
+        }
+
+        composeTestRule.onNodeWithText(alphaLabel).assertDoesNotExist()
     }
 
     // endregion

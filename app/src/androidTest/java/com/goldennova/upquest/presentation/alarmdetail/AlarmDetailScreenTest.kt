@@ -38,6 +38,7 @@ class AlarmDetailScreenTest {
             saveText = stringResource(R.string.alarm_save)
             deleteText = stringResource(R.string.alarm_delete)
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(),
                 onEvent = {},
                 isNewAlarm = true,
@@ -63,6 +64,7 @@ class AlarmDetailScreenTest {
             saveText = stringResource(R.string.alarm_save)
             deleteText = stringResource(R.string.alarm_delete)
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(),
                 onEvent = {},
                 isNewAlarm = false,
@@ -81,6 +83,7 @@ class AlarmDetailScreenTest {
     fun 수정_모드에서_기존_라벨이_입력_필드에_표시된다() {
         composeTestRule.setContent {
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(label = "기상 알람"),
                 onEvent = {},
                 isNewAlarm = false,
@@ -100,6 +103,7 @@ class AlarmDetailScreenTest {
         composeTestRule.setContent {
             repeatLabel = stringResource(R.string.repeat_days_label)
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(
                     repeatDays = setOf(DayOfWeek.MONDAY, DayOfWeek.FRIDAY),
                 ),
@@ -125,6 +129,7 @@ class AlarmDetailScreenTest {
         composeTestRule.setContent {
             photoSetupText = stringResource(R.string.photo_setup_title)
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(
                     dismissMode = DismissMode.PhotoVerification("/path/photo.jpg"),
                 ),
@@ -146,6 +151,7 @@ class AlarmDetailScreenTest {
         composeTestRule.setContent {
             photoSetupText = stringResource(R.string.photo_setup_title)
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(dismissMode = DismissMode.Normal),
                 onEvent = {},
                 isNewAlarm = true,
@@ -166,6 +172,7 @@ class AlarmDetailScreenTest {
         composeTestRule.setContent {
             dismissPhotoText = stringResource(R.string.dismiss_photo)
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(dismissMode = DismissMode.Normal),
                 onEvent = { capturedEvents.add(it) },
                 isNewAlarm = true,
@@ -195,6 +202,7 @@ class AlarmDetailScreenTest {
         composeTestRule.setContent {
             dismissModeLabel = stringResource(R.string.dismiss_mode_label)
             AlarmDetailScreen(
+                onPickRingtone = {},
                 uiState = AlarmDetailUiState(isLoading = true),
                 onEvent = {},
                 isNewAlarm = false,
